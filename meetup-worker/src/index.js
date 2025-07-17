@@ -10,6 +10,16 @@
 
 export default {
 	async fetch(request, env, ctx) {
-		return new Response('Hello World!');
+		try {
+			const htmlContent = await env.ASSETS.fetch('https://assets.local/hello.html');
+			return new Response(await htmlContent.text(), {
+				headers: { "Content-Type": "text/html" },
+			});
+		
+		} catch (err) {
+			console.log({ "message": "Error reading the HTML file", "error": err });
+			return new Response("Error loading the dashboard.", { status: 500 });
+		}
+		
 	},
 };
