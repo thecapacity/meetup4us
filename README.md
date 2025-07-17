@@ -10,4 +10,9 @@
         * type: `Worker Only`
         * langg: `Javascript`
     - Deploy: `No` (we'll use a GitHub Workflow for that or Cloudflare's GitHub App)
-* 
+* `npx wrangler dev`
+
+## Google Maps API
+- https://developers.google.com/maps/documentation/javascript/cloud-setup
+- **To Shutdown:** https://console.cloud.google.com/iam-admin/projects?utm_source=Docs_ProjectShutdown&utm_content=Docs_maps-backend
+    - Delete the project
