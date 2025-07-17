@@ -1,6 +1,6 @@
 {
   "devDependencies": {
-    "wrangler": "^4.14.1"
+    "wrangler": "^4.24.4"
   },
   "scripts": {
     "deploy": "cd meetup-worker && wrangler deploy",
