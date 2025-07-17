@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Meetup4.us</title>
+  <style>
+    body { font-family: sans-serif; margin: 0; display: flex; height: 100vh; }
+    #sidebar { width: 300px; padding: 1rem; box-shadow: 2px 0 5px rgba(0,0,0,0.1); }
+    #map { flex: 1; }
+    ul { list-style: none; padding-left: 0; }
+    li { margin: 0.5rem 0; }
+    input, button { width: 100%; padding: 0.5rem; margin-top: 0.5rem; }
+  </style>
+</head>
+<body>
+  <div id="sidebar">
+    <h2>Enter Addresses</h2>
+    <input type="text" id="address-input" placeholder="123 Main St" />
+    <button id="add-btn">Add</button>
+    <ul id="address-list"></ul>
+    <button id="plan-btn">Plan</button>
+  </div>
+  <div id="map"></div>
+
+  <script src="https://maps.googleapis.com/maps/api/js?key=YOUR_API_KEY"></script>
+  <script src="app.js"></script>
+</body>
+</html>
