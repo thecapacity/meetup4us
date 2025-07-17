@@ -14,5 +14,6 @@
 
 ## Google Maps API
 - https://developers.google.com/maps/documentation/javascript/cloud-setup
+    - Get an API key, add it `KEY="..."` into `.dev.vars`
 - **To Shutdown:** https://console.cloud.google.com/iam-admin/projects?utm_source=Docs_ProjectShutdown&utm_content=Docs_maps-backend
     - Delete the project
