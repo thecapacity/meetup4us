@@ -21,8 +21,8 @@ function initMap() {
     // Set up event listeners
     setupEventListeners();
     
-    // Load saved addresses after map is initialized
-    loadSavedAddresses();
+    // Load addresses from URL parameters
+    applyURLParameters();
 }
 
 async function setupAutocomplete() {
@@ -414,8 +414,8 @@ function addToList(formattedAddress, lat, lng, placeName = null) {
         map.setZoom(15);
     }
     
-    // Save to localStorage for persistence
-    localStorage.setItem('meetupAddresses', JSON.stringify(addressList));
+    // Save to URL for sharing
+    updateURLParameters();
 }
 
 function updateAddressListDisplay() {
@@ -479,7 +479,7 @@ function removeFromList(id) {
     }
     
     updateAddressListDisplay();
-    localStorage.setItem('meetupAddresses', JSON.stringify(addressList));
+    updateURLParameters();
 }
 
 let centerMarker = null;
@@ -851,42 +851,108 @@ async function updateAutocompleteForAddresses() {
     }
 }
 
-function loadSavedAddresses() {
-    const saved = localStorage.getItem('meetupAddresses');
-    if (saved) {
-        addressList = JSON.parse(saved);
-        updateAddressListDisplay();
-        
-        // Add markers for saved addresses
-        addressList.forEach(addr => {
-            const marker = new google.maps.marker.AdvancedMarkerElement({
-                position: { lat: addr.lat, lng: addr.lng },
-                map: map,
-                title: addr.formatted_address,
-            });
 
-            const infoWindow = new google.maps.InfoWindow({
-                content: `<strong>${addr.formatted_address}</strong><br><small>Saved Address</small>`
-            });
 
-            marker.addListener('click', () => {
-                infoWindow.open(map, marker);
-            });
-
-            markers.push(marker);
-        });
-
-        // Fit map to show all saved addresses
-        if (addressList.length > 0) {
-            const bounds = new google.maps.LatLngBounds();
-            addressList.forEach(addr => {
-                bounds.extend({ lat: addr.lat, lng: addr.lng });
-            });
-            map.fitBounds(bounds);
-        }
-    }
+// URL parameter functions for sharing
+function updateURLParameters() {
+    const url = new URL(window.location.href);
+    
+    // Clear existing parameters
+    url.searchParams.delete('addy');
+    url.searchParams.delete('poi');
+    
+    // Add addresses to URL
+    addressList.forEach(addr => {
+        url.searchParams.append('addy', addr.formatted_address);
+    });
+    
+    // Update URL without page reload
+    window.history.replaceState({}, '', url);
 }
 
+function applyURLParameters() {
+    const urlParams = new URLSearchParams(window.location.search);
+    
+    // Load addresses from URL
+    const addresses = urlParams.getAll('addy');
+    const pois = urlParams.getAll('poi');
+    
+    // Process addresses
+    addresses.forEach(address => {
+        geocodeAndAddAddress(address);
+    });
+    
+    // TODO: Process POIs (for future implementation)
+    pois.forEach(poi => {
+        console.log('POI from URL (not implemented yet):', poi);
+    });
+}
+
+function geocodeAndAddAddress(address) {
+    if (!geocoder) return;
+    
+    geocoder.geocode({ address: address }, (results, status) => {
+        if (status === 'OK') {
+            const location = results[0];
+            const position = location.geometry.location;
+            
+            // Add to list without updating URL (to avoid recursion)
+            addToListFromURL(location.formatted_address, position.lat(), position.lng());
+        } else {
+            console.error('Geocoding failed for:', address, status);
+        }
+    });
+}
+
+function addToListFromURL(formattedAddress, lat, lng) {
+    // Check if address is already in list
+    if (addressList.some(addr => addr.formatted_address === formattedAddress)) {
+        return; // Skip duplicates
+    }
+
+    // Add to address list
+    const addressData = {
+        formatted_address: formattedAddress,
+        lat: lat,
+        lng: lng,
+        id: Date.now() + Math.random()
+    };
+
+    addressList.push(addressData);
+    updateAddressListDisplay();
+    
+    // Create marker for the address
+    const position = { lat: lat, lng: lng };
+    const marker = new google.maps.marker.AdvancedMarkerElement({
+        position: position,
+        map: map,
+        title: formattedAddress,
+    });
+
+    // Add info window
+    const infoWindow = new google.maps.InfoWindow({
+        content: `<div><strong>${formattedAddress}</strong></div>`
+    });
+
+    marker.addListener('click', () => {
+        infoWindow.open(map, marker);
+    });
+
+    // Store marker reference
+    markers.push(marker);
+
+    // Adjust map bounds to show all markers
+    if (markers.length > 1) {
+        const bounds = new google.maps.LatLngBounds();
+        markers.forEach(marker => {
+            bounds.extend(marker.position);
+        });
+        map.fitBounds(bounds);
+    } else {
+        map.setCenter(position);
+        map.setZoom(15);
+    }
+}
 
 // Make functions available globally for Google Maps callback and onclick handlers
 window.initMap = initMap;
