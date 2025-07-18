@@ -19,7 +19,7 @@
 	],
 	"dev": {
 		"port": 8080,
-		"local_protocol": "https"
+		/* "local_protocol": "https" */
 	},
 	"assets": {
 		"directory": "./assets",
