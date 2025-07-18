@@ -114,7 +114,7 @@ function handleSelectedPlace(place) {
     } else {
         // In address mode - add to address list
         const address = place.formatted_address || name;
-        addToList(address, position.lat(), position.lng());
+        addToList(address, position.lat(), position.lng(), name);
     }
     
     // Clear input
@@ -138,6 +138,10 @@ function addPOIMarker(place, position) {
         title: place.name || 'Venue'
     });
     
+    // Generate unique ID first
+    const markerId = Date.now() + Math.random(); // Make it more unique
+    marker.id = markerId;
+    
     // Add info window with venue details
     const infoWindow = new google.maps.InfoWindow({
         content: `
@@ -145,7 +149,7 @@ function addPOIMarker(place, position) {
                 <strong>🏪 ${place.name || 'Venue'}</strong><br>
                 <small>${place.formatted_address || 'Address not available'}</small><br>
                 ${place.rating ? `⭐ ${place.rating}/5` : ''}<br>
-                <button onclick="removePOIMarker('${marker.id || Date.now()}')" style="margin-top: 0.5rem; padding: 0.3rem 0.5rem; background: #ea4335; color: white; border: none; border-radius: 3px; cursor: pointer;">
+                <button onclick="removePOIMarker('${markerId}')" style="margin-top: 0.5rem; padding: 0.3rem 0.5rem; background: #ea4335; color: white; border: none; border-radius: 3px; cursor: pointer;">
                     Remove
                 </button>
             </div>
@@ -157,7 +161,6 @@ function addPOIMarker(place, position) {
     });
     
     // Store POI marker
-    marker.id = Date.now();
     poiMarkers.push(marker);
     
     // Show info window immediately for new POIs
@@ -167,10 +170,17 @@ function addPOIMarker(place, position) {
 }
 
 function removePOIMarker(markerId) {
+    console.log('Removing POI marker with ID:', markerId);
+    console.log('Current POI markers:', poiMarkers.map(m => m.id));
+    
     const markerIndex = poiMarkers.findIndex(marker => marker.id == markerId);
     if (markerIndex !== -1) {
-        poiMarkers[markerIndex].map = null;
-        poiMarkers.splice(markerIndex, 1);
+        console.log('Found marker at index:', markerIndex);
+        poiMarkers[markerIndex].map = null; // Remove from map
+        poiMarkers.splice(markerIndex, 1);   // Remove from array
+        console.log('POI marker removed successfully');
+    } else {
+        console.log('POI marker not found');
     }
 }
 
@@ -354,7 +364,7 @@ function handlePOISearchResults(results, status, query) {
     }
 }
 
-function addToList(formattedAddress, lat, lng) {
+function addToList(formattedAddress, lat, lng, placeName = null) {
     // Check if address is already in list
     if (addressList.some(addr => addr.formatted_address === formattedAddress)) {
         alert('Address already in list!');
@@ -380,9 +390,9 @@ function addToList(formattedAddress, lat, lng) {
         title: formattedAddress,
     });
 
-    // Add info window showing it's in the planning list
+    // Add info window with place name and address
     const infoWindow = new google.maps.InfoWindow({
-        content: `<div><strong>${formattedAddress}</strong><br><small>✅ Added to Planning List</small></div>`
+        content: `<div><strong>${placeName || formattedAddress}</strong><br><small>${placeName ? formattedAddress : ''}</small></div>`
     });
 
     marker.addListener('click', () => {
@@ -878,5 +888,6 @@ function loadSavedAddresses() {
 }
 
 
-// Make initMap available globally for Google Maps callback
+// Make functions available globally for Google Maps callback and onclick handlers
 window.initMap = initMap;
+window.removePOIMarker = removePOIMarker;
