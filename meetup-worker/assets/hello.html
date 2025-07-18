@@ -6,24 +6,137 @@
   <title>Meetup4.us</title>
   <style>
     body { font-family: sans-serif; margin: 0; display: flex; height: 100vh; }
-    #sidebar { width: 300px; padding: 1rem; box-shadow: 2px 0 5px rgba(0,0,0,0.1); }
+    #sidebar { width: 300px; padding: 1rem; box-shadow: 2px 0 5px rgba(0,0,0,0.1); overflow-y: auto; }
     #map { flex: 1; }
-    ul { list-style: none; padding-left: 0; }
-    li { margin: 0.5rem 0; }
-    input, button { width: 100%; padding: 0.5rem; margin-top: 0.5rem; }
+    
+    input { width: 100%; padding: 0.5rem; margin-top: 0.5rem; box-sizing: border-box; }
+    
+    .button-row { display: flex; gap: 0.5rem; margin-top: 0.5rem; }
+    .button-row button { width: 100%; padding: 0.5rem; border: none; border-radius: 4px; cursor: pointer; }
+    #plan-btn { background: #34a853; color: white; font-weight: bold; }
+    #plan-btn:hover { background: #2d8f47; }
+    
+    #address-list-container { margin-top: 1rem; }
+    #address-list-container h3 { margin: 0 0 0.5rem 0; font-size: 1rem; color: #333; }
+    
+    ul { list-style: none; padding: 0; margin: 0; }
+    li { 
+      margin: 0.25rem 0; 
+      padding: 0.5rem; 
+      background: #f8f9fa; 
+      border-radius: 4px; 
+      border: 1px solid #e1e3e1;
+    }
+    
+    .address-item { 
+      display: flex; 
+      justify-content: space-between; 
+      align-items: center; 
+    }
+    
+    .address-text { 
+      flex: 1; 
+      cursor: pointer; 
+      font-size: 0.9rem;
+      line-height: 1.3;
+    }
+    
+    .address-text:hover { color: #1a73e8; }
+    
+    .remove-btn { 
+      background: #ea4335; 
+      color: white; 
+      border: none; 
+      border-radius: 50%; 
+      width: 24px; 
+      height: 24px; 
+      cursor: pointer; 
+      font-size: 12px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    
+    .remove-btn:hover { background: #d33b2c; }
+    
+    .empty-list { 
+      color: #666; 
+      font-style: italic; 
+      text-align: center; 
+      padding: 1rem; 
+    }
+    
+    .poi-categories {
+      margin-top: 0.5rem;
+      display: none;
+    }
+    
+    .poi-categories.active {
+      display: block;
+    }
+    
+    .category-btn {
+      display: inline-block;
+      padding: 0.3rem 0.6rem;
+      margin: 0.2rem;
+      background: #f8f9fa;
+      border: 1px solid #dadce0;
+      border-radius: 16px;
+      cursor: pointer;
+      font-size: 0.8rem;
+      transition: all 0.2s;
+    }
+    
+    .category-btn:hover {
+      background: #e8f0fe;
+      border-color: #4285f4;
+      color: #1a73e8;
+    }
+    
+    .search-mode-indicator {
+      font-size: 0.8rem;
+      color: #666;
+      margin-top: 0.3rem;
+      padding: 0.3rem 0.5rem;
+      background: #f8f9fa;
+      border-radius: 4px;
+      text-align: center;
+    }
+    
+    .search-mode-indicator.poi-mode {
+      background: #e8f0fe;
+      color: #1a73e8;
+    }
   </style>
 </head>
 <body>
   <div id="sidebar">
     <h2>Enter Addresses</h2>
     <input type="text" id="address-input" placeholder="123 Main St" />
-    <button id="add-btn">Add</button>
-    <ul id="address-list"></ul>
-    <button id="plan-btn">Plan</button>
+    <div class="search-mode-indicator" id="search-mode-indicator">
+      🏠 Address Search Mode
+    </div>
+    <div class="poi-categories" id="poi-categories">
+      <div class="category-btn" data-query="restaurants">🍽️ Restaurants</div>
+      <div class="category-btn" data-query="cafes">☕ Cafes</div>
+      <div class="category-btn" data-query="bars">🍺 Bars</div>
+      <div class="category-btn" data-query="parks">🌳 Parks</div>
+      <div class="category-btn" data-query="museums">🏛️ Museums</div>
+      <div class="category-btn" data-query="shopping">🛍️ Shopping</div>
+      <div class="category-btn" data-query="entertainment">🎬 Entertainment</div>
+      <div class="category-btn" data-query="gyms">💪 Gyms</div>
+    </div>
+    <div class="button-row">
+      <button id="plan-btn">Plan Meetup</button>
+    </div>
+    <div id="address-list-container">
+      <h3>Planning List</h3>
+      <ul id="address-list"></ul>
+    </div>
   </div>
   <div id="map"></div>
 
-  <script src="https://maps.googleapis.com/maps/api/js?key=GOOGLEMAPS_API_KEY"></script>
   <script src="app.js"></script>
+  <script src="https://maps.googleapis.com/maps/api/js?key=GOOGLEMAPS_APIKEY&libraries=marker,places&callback=initMap&loading=async" async defer></script>
 </body>
 </html>
