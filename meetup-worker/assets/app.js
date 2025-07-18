@@ -467,8 +467,8 @@ function removeFromList(id) {
     
     // Remove corresponding marker from map
     const markerIndex = markers.findIndex(marker => {
-        const markerLat = marker.position.lat();
-        const markerLng = marker.position.lng();
+        const markerLat = typeof marker.position.lat === 'function' ? marker.position.lat() : marker.position.lat;
+        const markerLng = typeof marker.position.lng === 'function' ? marker.position.lng() : marker.position.lng;
         return Math.abs(markerLat - addressToRemove.lat) < 0.0001 && 
                Math.abs(markerLng - addressToRemove.lng) < 0.0001;
     });
