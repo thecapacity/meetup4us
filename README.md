@@ -15,6 +15,6 @@
 ## Google Maps API
 - https://developers.google.com/maps/documentation/javascript/cloud-setup
     - Get an API key, add it `KEY="..."` into `.dev.vars`
-    - It's a good idea to restrict by website domain (referrer too)
+    - It's a good idea to restrict by website domain (referrer too) **BUT** this won't work with the GeoCoding API
 - **To Shutdown:** https://console.cloud.google.com/iam-admin/projects?utm_source=Docs_ProjectShutdown&utm_content=Docs_maps-backend
     - Delete the project
