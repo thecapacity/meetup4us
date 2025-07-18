@@ -51,17 +51,31 @@ async function setupAutocomplete() {
         autocomplete.style.borderRadius = '4px';
         autocomplete.placeholder = '123 Main St';
 
-        // Listen for place selection
-        autocomplete.addEventListener('gmp-placeselect', (event) => {
-            const place = event.place;
+        // Listen for place selection using Google's recommended event
+        autocomplete.addEventListener('gmp-select', async (event) => {
+            const { placePrediction } = event;
             
-            if (!place.geometry) {
-                console.log("No details available for selected place");
+            if (!placePrediction) {
+                console.log("No place prediction available");
                 return;
             }
 
-            // Use the selected place for immediate processing
-            handleSelectedPlace(place);
+            // Convert prediction to place and fetch details
+            const place = placePrediction.toPlace();
+            await place.fetchFields({ 
+                fields: ['displayName', 'formattedAddress', 'location'] 
+            });
+
+            // Convert to the expected format for our existing function
+            const placeData = {
+                name: place.displayName,
+                formatted_address: place.formattedAddress,
+                geometry: {
+                    location: place.location
+                }
+            };
+
+            handleSelectedPlace(placeData);
         });
         
         // Add Enter key support for manual entry fallback
@@ -70,7 +84,7 @@ async function setupAutocomplete() {
                 e.preventDefault();
                 // Small delay to allow autocomplete to process first
                 setTimeout(() => {
-                    const currentValue = getAddressInputValue().trim();
+                    const currentValue = autocomplete.value?.trim();
                     if (currentValue) {
                         searchAndAddAddress();
                     }
@@ -203,38 +217,9 @@ function getAddressInputValue() {
 
 function clearAddressInput() {
     // Clear the input value from the PlaceAutocompleteElement
-    if (autocomplete) {
-        // Use the same Dg property to clear the input
-        if (autocomplete.Dg && autocomplete.Dg.value !== undefined) {
-            autocomplete.Dg.value = '';
-            return;
-        }
-        
-        // Also try clearing via the closed shadow root
-        if (autocomplete.Ki) {
-            const shadowInput = autocomplete.Ki.querySelector && autocomplete.Ki.querySelector('input');
-            if (shadowInput) {
-                shadowInput.value = '';
-                return;
-            }
-        }
-        
-        // Try other internal properties that might contain the input
-        const possibleInputProps = ['Dg', 'mh', 'inputElement'];
-        for (const prop of possibleInputProps) {
-            if (autocomplete[prop] && autocomplete[prop].value !== undefined) {
-                autocomplete[prop].value = '';
-                return;
-            }
-            // If it's a container, look for input inside it
-            if (autocomplete[prop] && autocomplete[prop].querySelector) {
-                const input = autocomplete[prop].querySelector('input');
-                if (input) {
-                    input.value = '';
-                    return;
-                }
-            }
-        }
+    if (autocomplete && autocomplete.value !== undefined) {
+        autocomplete.value = '';
+        return;
     }
     
     // Fallback to original input if autocomplete failed to load
@@ -245,7 +230,7 @@ function clearAddressInput() {
 }
 
 function searchAndAddAddress() {
-    const searchTerm = getAddressInputValue().trim();
+    const searchTerm = autocomplete?.value?.trim() || '';
 
     if (!searchTerm) {
         const message = isPlanning ? 'Please enter a venue name or type' : 'Please enter an address';
@@ -286,28 +271,79 @@ async function searchPOIsNearCenter(query) {
         const { PlacesService } = await google.maps.importLibrary("places");
         const service = new PlacesService(map);
         
-        const request = {
-            location: centerMarker.position,
-            radius: searchRadius,
-            query: query,
-            type: 'establishment'
+        // Map common queries to specific place types for better results
+        const placeTypeMap = {
+            'restaurants': 'restaurant',
+            'cafes': 'cafe',
+            'bars': 'bar',
+            'parks': 'park',
+            'museums': 'museum',
+            'shopping': 'shopping_mall',
+            'entertainment': 'movie_theater',
+            'gyms': 'gym'
         };
-
-        service.textSearch(request, (results, status) => {
-            if (status === google.maps.places.PlacesServiceStatus.OK && results.length > 0) {
-                // Add the first result as a POI marker
-                const place = results[0];
-                addPOIMarker(place, place.geometry.location);
-                
-                // Clear input
-                clearAddressInput();
-            } else {
-                alert(`No ${query} found near your meetup center.`);
-            }
-        });
+        
+        // Determine search type and parameters
+        const specificType = placeTypeMap[query.toLowerCase()];
+        let searchRequest;
+        
+        if (specificType) {
+            // Use nearbySearch for specific place types
+            searchRequest = {
+                location: centerMarker.position,
+                radius: searchRadius,
+                type: specificType
+            };
+            
+            service.nearbySearch(searchRequest, (results, status) => {
+                handlePOISearchResults(results, status, query);
+            });
+        } else {
+            // Use textSearch for general queries
+            searchRequest = {
+                location: centerMarker.position,
+                radius: searchRadius,
+                query: query,
+                type: 'establishment'
+            };
+            
+            service.textSearch(searchRequest, (results, status) => {
+                handlePOISearchResults(results, status, query);
+            });
+        }
     } catch (error) {
         console.error('Error searching for POIs:', error);
         alert('Unable to search for venues at this time.');
+    }
+}
+
+function handlePOISearchResults(results, status, query) {
+    if (status === google.maps.places.PlacesServiceStatus.OK && results.length > 0) {
+        // Add multiple results if available (up to 3)
+        const resultsToShow = results.slice(0, 3);
+        
+        resultsToShow.forEach((place, index) => {
+            // Add slight delay to stagger marker appearance
+            setTimeout(() => {
+                addPOIMarker(place, place.geometry.location);
+            }, index * 200);
+        });
+        
+        // Clear input
+        clearAddressInput();
+        
+        // Show success message
+        const searchModeIndicator = document.getElementById('search-mode-indicator');
+        const originalText = searchModeIndicator.textContent;
+        searchModeIndicator.textContent = `✅ Found ${resultsToShow.length} ${query}`;
+        
+        // Reset after 2 seconds
+        setTimeout(() => {
+            searchModeIndicator.textContent = originalText;
+        }, 2000);
+        
+    } else {
+        alert(`No ${query} found near your meetup center.`);
     }
 }
 
@@ -405,7 +441,26 @@ function focusOnAddress(lat, lng) {
 }
 
 function removeFromList(id) {
+    // Find the address before removing it
+    const addressToRemove = addressList.find(addr => addr.id === id);
+    if (!addressToRemove) return;
+    
+    // Remove from address list
     addressList = addressList.filter(addr => addr.id !== id);
+    
+    // Remove corresponding marker from map
+    const markerIndex = markers.findIndex(marker => {
+        const markerLat = marker.position.lat();
+        const markerLng = marker.position.lng();
+        return Math.abs(markerLat - addressToRemove.lat) < 0.0001 && 
+               Math.abs(markerLng - addressToRemove.lng) < 0.0001;
+    });
+    
+    if (markerIndex !== -1) {
+        markers[markerIndex].map = null; // Remove marker from map
+        markers.splice(markerIndex, 1); // Remove from markers array
+    }
+    
     updateAddressListDisplay();
     localStorage.setItem('meetupAddresses', JSON.stringify(addressList));
 }
@@ -649,16 +704,31 @@ async function updateAutocompleteForPOI() {
         // Add it back to the container
         inputContainer.appendChild(autocomplete);
         
-        // Listen for place selection
-        autocomplete.addEventListener('gmp-placeselect', (event) => {
-            const place = event.place;
+        // Listen for place selection using Google's recommended event
+        autocomplete.addEventListener('gmp-select', async (event) => {
+            const { placePrediction } = event;
             
-            if (!place.geometry) {
-                console.log("No details available for selected place");
+            if (!placePrediction) {
+                console.log("No place prediction available");
                 return;
             }
-            
-            handleSelectedPlace(place);
+
+            // Convert prediction to place and fetch details
+            const place = placePrediction.toPlace();
+            await place.fetchFields({ 
+                fields: ['displayName', 'formattedAddress', 'location'] 
+            });
+
+            // Convert to the expected format for our existing function
+            const placeData = {
+                name: place.displayName,
+                formatted_address: place.formattedAddress,
+                geometry: {
+                    location: place.location
+                }
+            };
+
+            handleSelectedPlace(placeData);
         });
         
         // Add Enter key support with POI search
@@ -666,7 +736,7 @@ async function updateAutocompleteForPOI() {
             if (e.key === 'Enter') {
                 e.preventDefault();
                 setTimeout(() => {
-                    const currentValue = getAddressInputValue().trim();
+                    const currentValue = autocomplete.value?.trim();
                     if (currentValue) {
                         searchPOIsNearCenter(currentValue);
                     }
@@ -707,16 +777,31 @@ async function updateAutocompleteForAddresses() {
         // Add it back to the container
         inputContainer.appendChild(autocomplete);
         
-        // Listen for place selection
-        autocomplete.addEventListener('gmp-placeselect', (event) => {
-            const place = event.place;
+        // Listen for place selection using Google's recommended event
+        autocomplete.addEventListener('gmp-select', async (event) => {
+            const { placePrediction } = event;
             
-            if (!place.geometry) {
-                console.log("No details available for selected place");
+            if (!placePrediction) {
+                console.log("No place prediction available");
                 return;
             }
-            
-            handleSelectedPlace(place);
+
+            // Convert prediction to place and fetch details
+            const place = placePrediction.toPlace();
+            await place.fetchFields({ 
+                fields: ['displayName', 'formattedAddress', 'location'] 
+            });
+
+            // Convert to the expected format for our existing function
+            const placeData = {
+                name: place.displayName,
+                formatted_address: place.formattedAddress,
+                geometry: {
+                    location: place.location
+                }
+            };
+
+            handleSelectedPlace(placeData);
         });
         
         // Add Enter key support for address search
@@ -724,7 +809,7 @@ async function updateAutocompleteForAddresses() {
             if (e.key === 'Enter') {
                 e.preventDefault();
                 setTimeout(() => {
-                    const currentValue = getAddressInputValue().trim();
+                    const currentValue = autocomplete.value?.trim();
                     if (currentValue) {
                         searchAndAddAddress();
                     }
