@@ -103,7 +103,14 @@ function handleSelectedPlace(place) {
     
     if (isPlanning) {
         // In planning mode - add POI marker
-        addPOIMarker(place, position);
+        // Check if this is actually a business/POI vs just an address
+        if (place.name && place.name !== place.formatted_address) {
+            // This looks like a real business with a name
+            addPOIMarker(place, position);
+        } else {
+            // This looks like just an address, try to search for POIs nearby
+            alert('Please select a specific business or venue, not just an address.');
+        }
     } else {
         // In address mode - add to address list
         const address = place.formatted_address || name;
@@ -601,9 +608,7 @@ function switchToPOISearchMode() {
     searchModeIndicator.textContent = '🎯 POI Search Mode';
     searchModeIndicator.classList.add('poi-mode');
     
-    // Show POI categories
-    const poiCategories = document.getElementById('poi-categories');
-    poiCategories.classList.add('active');
+    // POI categories removed - using search bar only
     
     // Update input placeholder
     if (autocomplete && autocomplete.placeholder !== undefined) {
@@ -618,9 +623,6 @@ function switchToPOISearchMode() {
     
     // Update autocomplete to search for places instead of addresses
     updateAutocompleteForPOI();
-    
-    // Set up category button listeners
-    setupCategoryButtons();
 }
 
 function resetPlanning() {
@@ -634,9 +636,7 @@ function resetPlanning() {
     searchModeIndicator.textContent = '🏠 Address Search Mode';
     searchModeIndicator.classList.remove('poi-mode');
     
-    // Hide POI categories
-    const poiCategories = document.getElementById('poi-categories');
-    poiCategories.classList.remove('active');
+    // POI categories removed - using search bar only
     
     // Reset input placeholder
     if (autocomplete && autocomplete.placeholder !== undefined) {
@@ -858,15 +858,6 @@ function loadSavedAddresses() {
     }
 }
 
-function setupCategoryButtons() {
-    const categoryButtons = document.querySelectorAll('.category-btn');
-    categoryButtons.forEach(button => {
-        button.addEventListener('click', () => {
-            const query = button.getAttribute('data-query');
-            searchPOIsNearCenter(query);
-        });
-    });
-}
 
 // Make initMap available globally for Google Maps callback
 window.initMap = initMap;

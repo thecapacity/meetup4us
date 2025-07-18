@@ -66,32 +66,6 @@
       padding: 1rem; 
     }
     
-    .poi-categories {
-      margin-top: 0.5rem;
-      display: none;
-    }
-    
-    .poi-categories.active {
-      display: block;
-    }
-    
-    .category-btn {
-      display: inline-block;
-      padding: 0.3rem 0.6rem;
-      margin: 0.2rem;
-      background: #f8f9fa;
-      border: 1px solid #dadce0;
-      border-radius: 16px;
-      cursor: pointer;
-      font-size: 0.8rem;
-      transition: all 0.2s;
-    }
-    
-    .category-btn:hover {
-      background: #e8f0fe;
-      border-color: #4285f4;
-      color: #1a73e8;
-    }
     
     .search-mode-indicator {
       font-size: 0.8rem;
@@ -115,16 +89,6 @@
     <input type="text" id="address-input" placeholder="123 Main St" />
     <div class="search-mode-indicator" id="search-mode-indicator">
       🏠 Address Search Mode
-    </div>
-    <div class="poi-categories" id="poi-categories">
-      <div class="category-btn" data-query="restaurants">🍽️ Restaurants</div>
-      <div class="category-btn" data-query="cafes">☕ Cafes</div>
-      <div class="category-btn" data-query="bars">🍺 Bars</div>
-      <div class="category-btn" data-query="parks">🌳 Parks</div>
-      <div class="category-btn" data-query="museums">🏛️ Museums</div>
-      <div class="category-btn" data-query="shopping">🛍️ Shopping</div>
-      <div class="category-btn" data-query="entertainment">🎬 Entertainment</div>
-      <div class="category-btn" data-query="gyms">💪 Gyms</div>
     </div>
     <div class="button-row">
       <button id="plan-btn">Plan Meetup</button>
