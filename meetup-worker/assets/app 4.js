@@ -35,7 +35,7 @@ async function setupAutocomplete() {
         // Create the autocomplete element
         autocomplete = new PlaceAutocompleteElement({
             componentRestrictions: { country: 'us' },
-            types: ['establishment', 'address'] // Allow both businesses and addresses
+            types: ['address']
         });
 
         // Replace the input with the autocomplete element
@@ -49,7 +49,7 @@ async function setupAutocomplete() {
         autocomplete.style.boxSizing = 'border-box';
         autocomplete.style.border = '1px solid #ccc';
         autocomplete.style.borderRadius = '4px';
-        autocomplete.placeholder = 'Enter address or search for places...';
+        autocomplete.placeholder = '123 Main St';
 
         // Listen for place selection using Google's recommended event
         autocomplete.addEventListener('gmp-select', async (event) => {
@@ -101,15 +101,21 @@ function handleSelectedPlace(place) {
     const position = place.geometry.location;
     const name = place.name || place.formatted_address;
     
-    // Determine if this is a business/POI vs just an address
-    if (place.name && place.name !== place.formatted_address) {
-        // This looks like a real business with a name - add as POI
-        const address = place.formatted_address || place.name;
-        addToList(address, position.lat(), position.lng(), place.name, 'poi');
+    if (isPlanning) {
+        // In planning mode - add POI marker
+        // Check if this is actually a business/POI vs just an address
+        if (place.name && place.name !== place.formatted_address) {
+            // This looks like a real business with a name - add it to planning list
+            const address = place.formatted_address || place.name;
+            addToList(address, position.lat(), position.lng(), place.name, 'poi');
+        } else {
+            // This looks like just an address, try to search for POIs nearby
+            alert('Please select a specific business or venue, not just an address.');
+        }
     } else {
-        // This looks like just an address - add as address
+        // In address mode - add to address list
         const address = place.formatted_address || name;
-        addToList(address, position.lat(), position.lng(), name, 'address');
+        addToList(address, position.lat(), position.lng(), name);
     }
     
     // Clear input
@@ -119,7 +125,10 @@ function handleSelectedPlace(place) {
 
 
 function setupEventListeners() {
-    // No buttons to set up anymore - simplified UI
+    const planBtn = document.getElementById('plan-btn');
+
+    // Plan button functionality 
+    planBtn.addEventListener('click', planMeetup);
 }
 
 function getAddressInputValue() {
@@ -165,31 +174,9 @@ function getAddressInputValue() {
 
 function clearAddressInput() {
     // Clear the input value from the PlaceAutocompleteElement
-    if (autocomplete) {
-        // Try multiple methods to clear the autocomplete
-        try {
-            autocomplete.value = '';
-        } catch (e) {
-            console.log('Could not clear autocomplete value:', e);
-        }
-        
-        // Also try to find and clear the internal input
-        try {
-            const shadowInput = autocomplete.shadowRoot?.querySelector('input');
-            if (shadowInput) {
-                shadowInput.value = '';
-            }
-        } catch (e) {
-            // Shadow root might not be accessible
-        }
-        
-        // Force focus and blur to reset the element
-        try {
-            autocomplete.focus();
-            autocomplete.blur();
-        } catch (e) {
-            // Focus/blur might not work
-        }
+    if (autocomplete && autocomplete.value !== undefined) {
+        autocomplete.value = '';
+        return;
     }
     
     // Fallback to original input if autocomplete failed to load
@@ -203,25 +190,31 @@ function searchAndAddAddress() {
     const searchTerm = autocomplete?.value?.trim() || '';
 
     if (!searchTerm) {
-        alert('Please enter an address or place name');
+        const message = isPlanning ? 'Please enter a venue name or type' : 'Please enter an address';
+        alert(message);
         return;
     }
 
-    // Use Google Geocoding API to find the location
-    geocoder.geocode({ address: searchTerm }, (results, status) => {
-        if (status === 'OK') {
-            const location = results[0];
-            const position = location.geometry.location;
+    if (isPlanning) {
+        // Search for POIs near the center point
+        searchPOIsNearCenter(searchTerm);
+    } else {
+        // Use Google Geocoding API to find the location
+        geocoder.geocode({ address: searchTerm }, (results, status) => {
+            if (status === 'OK') {
+                const location = results[0];
+                const position = location.geometry.location;
 
-            // Automatically add to planning list when manually geocoded
-            addToList(location.formatted_address, position.lat(), position.lng());
+                // Automatically add to planning list when manually geocoded
+                addToList(location.formatted_address, position.lat(), position.lng());
 
-            // Clear input
-            clearAddressInput();
-        } else {
-            alert('Geocode was not successful: ' + status);
-        }
-    });
+                // Clear input
+                clearAddressInput();
+            } else {
+                alert('Geocode was not successful: ' + status);
+            }
+        });
+    }
 }
 
 async function searchPOIsNearCenter(query) {
@@ -289,9 +282,7 @@ function handlePOISearchResults(results, status, query) {
         resultsToShow.forEach((place, index) => {
             // Add slight delay to stagger marker appearance
             setTimeout(() => {
-                const position = place.geometry.location;
-                const address = place.formatted_address || place.name;
-                addToList(address, position.lat(), position.lng(), place.name, 'poi');
+                addPOIMarker(place, place.geometry.location);
             }, index * 200);
         });
         
@@ -380,9 +371,6 @@ function addToList(formattedAddress, lat, lng, placeName = null, type = 'address
         map.setZoom(15);
     }
     
-    // Update center of interest marker
-    updateCenterOfInterest();
-    
     // Save to URL for sharing
     updateURLParameters();
 }
@@ -448,54 +436,12 @@ function removeFromList(id) {
     }
     
     updateAddressListDisplay();
-    updateCenterOfInterest();
     updateURLParameters();
 }
 
 let centerMarker = null;
 let searchRadius = null;
-
-function updateCenterOfInterest() {
-    if (addressList.length === 0) {
-        // Remove center marker and circle if no addresses
-        if (centerMarker) {
-            centerMarker.map = null;
-            centerMarker = null;
-        }
-        if (searchCircle) {
-            searchCircle.setMap(null);
-            searchCircle = null;
-        }
-        return;
-    }
-
-    if (addressList.length === 1) {
-        // For single address, place center marker at that location but no search radius
-        const center = { lat: addressList[0].lat, lng: addressList[0].lng };
-        placeCenterMarker(center);
-        
-        // Remove search circle
-        if (searchCircle) {
-            searchCircle.setMap(null);
-            searchCircle = null;
-        }
-        return;
-    }
-
-    // Calculate center point of all addresses
-    const center = calculateCenter(addressList);
-    
-    // Calculate distances to determine search radius
-    const distances = calculateDistances(center, addressList);
-    const maxDistance = Math.max(...distances);
-    searchRadius = Math.max(maxDistance * 0.8, 1000); // Use 80% of max distance, minimum 1km
-    
-    // Place blue center marker
-    placeCenterMarker(center);
-    
-    // Draw search radius circle
-    drawSearchRadius(center, searchRadius);
-}
+let isPlanning = false;
 
 function planMeetup() {
     if (addressList.length === 0) {
@@ -508,13 +454,29 @@ function planMeetup() {
         return;
     }
 
-    // Use the existing center of interest calculation
-    updateCenterOfInterest();
+    // Calculate center point of all addresses
+    const center = calculateCenter(addressList);
+    
+    // Calculate distances to determine search radius
+    const distances = calculateDistances(center, addressList);
+    const maxDistance = Math.max(...distances);
+    const minDistance = Math.min(...distances);
+    searchRadius = Math.max(maxDistance * 0.8, 1000); // Use 80% of max distance, minimum 1km
+    
+    // Place blue center marker
+    placeCenterMarker(center);
+    
+    // Draw search radius circle
+    drawSearchRadius(center, searchRadius);
+    
+    // Change UI to POI search mode
+    switchToPOISearchMode();
     
     // Center map on the meetup center
-    const center = calculateCenter(addressList);
     map.setCenter(center);
     map.setZoom(12);
+    
+    isPlanning = true;
 }
 
 function calculateCenter(addresses) {
@@ -601,8 +563,245 @@ function drawSearchRadius(center, radius) {
 }
 
 
+function switchToPOISearchMode() {
+    // Update UI to indicate planning mode
+    const heading = document.querySelector('#sidebar h2');
+    heading.textContent = '🎯 Find Venues';
+    heading.style.color = '#4285f4';
+    
+    // Update search mode indicator
+    const searchModeIndicator = document.getElementById('search-mode-indicator');
+    searchModeIndicator.textContent = '🎯 POI Search Mode';
+    searchModeIndicator.classList.add('poi-mode');
+    
+    // POI categories removed - using search bar only
+    
+    // Update input placeholder
+    if (autocomplete && autocomplete.placeholder !== undefined) {
+        autocomplete.placeholder = 'Search for restaurants, cafes, bars...';
+    }
+    
+    // Update plan button
+    const planBtn = document.getElementById('plan-btn');
+    planBtn.textContent = 'Reset Planning';
+    planBtn.style.backgroundColor = '#ea4335';
+    planBtn.onclick = resetPlanning;
+    
+    // Update autocomplete to search for places instead of addresses
+    updateAutocompleteForPOI();
+}
 
+function resetPlanning() {
+    // Reset to address mode
+    const heading = document.querySelector('#sidebar h2');
+    heading.textContent = 'Enter Addresses';
+    heading.style.color = '#333';
+    
+    // Reset search mode indicator
+    const searchModeIndicator = document.getElementById('search-mode-indicator');
+    searchModeIndicator.textContent = '🏠 Address Search Mode';
+    searchModeIndicator.classList.remove('poi-mode');
+    
+    // POI categories removed - using search bar only
+    
+    // Reset input placeholder
+    if (autocomplete && autocomplete.placeholder !== undefined) {
+        autocomplete.placeholder = '123 Main St';
+    }
+    
+    // Reset plan button
+    const planBtn = document.getElementById('plan-btn');
+    planBtn.textContent = 'Plan Meetup';
+    planBtn.style.backgroundColor = '#34a853';
+    planBtn.onclick = planMeetup;
+    
+    // Remove center marker and circle
+    if (centerMarker) {
+        centerMarker.map = null;
+        centerMarker = null;
+    }
+    
+    if (searchCircle) {
+        searchCircle.setMap(null);
+        searchCircle = null;
+    }
+    
+    // POI markers are now handled in the unified markers array
+    
+    // Reset autocomplete to address mode
+    updateAutocompleteForAddresses();
+    
+    isPlanning = false;
+}
 
+async function updateAutocompleteForPOI() {
+    if (!autocomplete) {
+        console.log("No autocomplete element found");
+        return;
+    }
+    
+    try {
+        console.log("Switching to POI mode - recreating autocomplete element");
+        
+        // Store the parent container
+        const inputContainer = autocomplete.parentNode;
+        if (!inputContainer) {
+            console.log("No parent container found");
+            return;
+        }
+        
+        // Remove existing autocomplete
+        inputContainer.removeChild(autocomplete);
+        
+        // Create new autocomplete optimized for POI search
+        const { PlaceAutocompleteElement } = await google.maps.importLibrary("places");
+        
+        autocomplete = new PlaceAutocompleteElement({
+            componentRestrictions: { country: 'us' },
+            types: ['establishment']
+        });
+        
+        // Style the autocomplete element
+        autocomplete.style.width = '100%';
+        autocomplete.style.padding = '0.5rem';
+        autocomplete.style.marginTop = '0.5rem';
+        autocomplete.style.boxSizing = 'border-box';
+        autocomplete.style.border = '1px solid #4285f4';
+        autocomplete.style.borderRadius = '4px';
+        autocomplete.placeholder = 'Search for restaurants, cafes, bars...';
+        
+        // Add it back to the container
+        inputContainer.appendChild(autocomplete);
+        
+        // Listen for place selection using Google's recommended event
+        autocomplete.addEventListener('gmp-select', async (event) => {
+            const { placePrediction } = event;
+            
+            if (!placePrediction) {
+                console.log("No place prediction available");
+                return;
+            }
+
+            // Convert prediction to place and fetch details
+            const place = placePrediction.toPlace();
+            await place.fetchFields({ 
+                fields: ['displayName', 'formattedAddress', 'location'] 
+            });
+
+            // Convert to the expected format for our existing function
+            const placeData = {
+                name: place.displayName,
+                formatted_address: place.formattedAddress,
+                geometry: {
+                    location: place.location
+                }
+            };
+
+            handleSelectedPlace(placeData);
+        });
+        
+        // Add Enter key support with POI search
+        autocomplete.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                setTimeout(() => {
+                    const currentValue = autocomplete.value?.trim();
+                    if (currentValue) {
+                        searchPOIsNearCenter(currentValue);
+                    }
+                }, 100);
+            }
+        });
+        
+        console.log("POI mode activated successfully");
+        
+    } catch (error) {
+        console.error('Error updating autocomplete for POI:', error);
+    }
+}
+
+async function updateAutocompleteForAddresses() {
+    if (!autocomplete) return;
+    
+    try {
+        console.log("Switching to address mode - recreating autocomplete element");
+        
+        // Store the parent container
+        const inputContainer = autocomplete.parentNode;
+        if (!inputContainer) {
+            console.log("No parent container found");
+            return;
+        }
+        
+        // Remove existing autocomplete
+        inputContainer.removeChild(autocomplete);
+        
+        // Create new autocomplete optimized for address search
+        const { PlaceAutocompleteElement } = await google.maps.importLibrary("places");
+        
+        autocomplete = new PlaceAutocompleteElement({
+            componentRestrictions: { country: 'us' },
+            types: ['address']
+        });
+        
+        // Style the autocomplete element
+        autocomplete.style.width = '100%';
+        autocomplete.style.padding = '0.5rem';
+        autocomplete.style.marginTop = '0.5rem';
+        autocomplete.style.boxSizing = 'border-box';
+        autocomplete.style.border = '1px solid #ccc';
+        autocomplete.style.borderRadius = '4px';
+        autocomplete.placeholder = '123 Main St';
+        
+        // Add it back to the container
+        inputContainer.appendChild(autocomplete);
+        
+        // Listen for place selection using Google's recommended event
+        autocomplete.addEventListener('gmp-select', async (event) => {
+            const { placePrediction } = event;
+            
+            if (!placePrediction) {
+                console.log("No place prediction available");
+                return;
+            }
+
+            // Convert prediction to place and fetch details
+            const place = placePrediction.toPlace();
+            await place.fetchFields({ 
+                fields: ['displayName', 'formattedAddress', 'location'] 
+            });
+
+            // Convert to the expected format for our existing function
+            const placeData = {
+                name: place.displayName,
+                formatted_address: place.formattedAddress,
+                geometry: {
+                    location: place.location
+                }
+            };
+
+            handleSelectedPlace(placeData);
+        });
+        
+        // Add Enter key support for address search
+        autocomplete.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                setTimeout(() => {
+                    const currentValue = autocomplete.value?.trim();
+                    if (currentValue) {
+                        searchAndAddAddress();
+                    }
+                }, 100);
+            }
+        });
+        
+        console.log("Address mode activated successfully");
+        
+    } catch (error) {
+        console.error('Error updating autocomplete for addresses:', error);
+    }
+}
 
 
 
@@ -611,14 +810,15 @@ function updateURLParameters() {
     const url = new URL(window.location.href);
     
     // Clear existing parameters
+    url.searchParams.delete('addy');
     url.searchParams.delete('poi');
     
-    // Add all items to URL as POIs
+    // Add addresses and POIs to URL
     addressList.forEach(addr => {
         if (addr.type === 'poi') {
             url.searchParams.append('poi', addr.placeName || addr.formatted_address);
         } else {
-            url.searchParams.append('poi', addr.formatted_address);
+            url.searchParams.append('addy', addr.formatted_address);
         }
     });
     
@@ -629,43 +829,38 @@ function updateURLParameters() {
 function applyURLParameters() {
     const urlParams = new URLSearchParams(window.location.search);
     
-    // Load all items from URL (everything is now a POI parameter)
+    // Load addresses from URL
+    const addresses = urlParams.getAll('addy');
     const pois = urlParams.getAll('poi');
     
-    // Process all POIs (which includes both addresses and actual POIs)
+    // Process addresses
+    addresses.forEach(address => {
+        geocodeAndAddAddress(address);
+    });
+    
+    // TODO: Process POIs (for future implementation)
     pois.forEach(poi => {
-        geocodeAndAddPOI(poi);
+        console.log('POI from URL (not implemented yet):', poi);
     });
 }
 
-function geocodeAndAddPOI(itemName) {
+function geocodeAndAddAddress(address) {
     if (!geocoder) return;
     
-    // Geocode the item name to get its location
-    geocoder.geocode({ address: itemName }, (results, status) => {
+    geocoder.geocode({ address: address }, (results, status) => {
         if (status === 'OK') {
             const location = results[0];
             const position = location.geometry.location;
             
-            // Smart detection: if the geocoded result has a different name than input, 
-            // it's likely a business/POI, otherwise it's probably an address
-            const isBusinessPOI = (location.name && location.name !== location.formatted_address && 
-                                  location.name.toLowerCase() === itemName.toLowerCase());
-            
-            if (isBusinessPOI) {
-                // Add as POI
-                addToListFromURL(location.formatted_address, position.lat(), position.lng(), itemName, 'poi');
-            } else {
-                // Add as address
-                addToListFromURL(location.formatted_address, position.lat(), position.lng(), null, 'address');
-            }
+            // Add to list without updating URL (to avoid recursion)
+            addToListFromURL(location.formatted_address, position.lat(), position.lng());
         } else {
-            console.error('Geocoding failed for:', itemName, status);
+            console.error('Geocoding failed for:', address, status);
         }
     });
 }
 
-function addToListFromURL(formattedAddress, lat, lng, placeName = null, type = 'address') {
+function addToListFromURL(formattedAddress, lat, lng) {
     // Check if address is already in list
     if (addressList.some(addr => addr.formatted_address === formattedAddress)) {
         return; // Skip duplicates
@@ -676,40 +871,23 @@ function addToListFromURL(formattedAddress, lat, lng, placeName = null, type = '
         formatted_address: formattedAddress,
         lat: lat,
         lng: lng,
-        id: Date.now() + Math.random(),
-        placeName: placeName,
-        type: type
+        id: Date.now() + Math.random()
     };
 
     addressList.push(addressData);
     updateAddressListDisplay();
     
-    // Create marker for the address/POI
+    // Create marker for the address
     const position = { lat: lat, lng: lng };
-    
-    // Create different marker styling for POIs
-    let markerContent = null;
-    if (type === 'poi') {
-        const poiIcon = document.createElement('div');
-        poiIcon.style.width = '16px';
-        poiIcon.style.height = '16px';
-        poiIcon.style.borderRadius = '50%';
-        poiIcon.style.backgroundColor = '#ea4335';
-        poiIcon.style.border = '2px solid white';
-        poiIcon.style.boxShadow = '0 2px 4px rgba(0,0,0,0.3)';
-        markerContent = poiIcon;
-    }
-    
     const marker = new google.maps.marker.AdvancedMarkerElement({
         position: position,
         map: map,
         title: formattedAddress,
-        content: markerContent // null for default blue marker (addresses)
     });
 
     // Add info window
     const infoWindow = new google.maps.InfoWindow({
-        content: `<div><strong>${placeName || formattedAddress}</strong><br><small>${placeName ? formattedAddress : ''}</small></div>`
+        content: `<div><strong>${formattedAddress}</strong></div>`
     });
 
     marker.addListener('click', () => {
@@ -734,3 +912,4 @@ function addToListFromURL(formattedAddress, lat, lng, placeName = null, type = '
 
 // Make functions available globally for Google Maps callback and onclick handlers
 window.initMap = initMap;
+window.removePOIMarker = removePOIMarker;

@@ -11,10 +11,6 @@
     
     input { width: 100%; padding: 0.5rem; margin-top: 0.5rem; box-sizing: border-box; }
     
-    .button-row { display: flex; gap: 0.5rem; margin-top: 0.5rem; }
-    .button-row button { width: 100%; padding: 0.5rem; border: none; border-radius: 4px; cursor: pointer; }
-    #plan-btn { background: #34a853; color: white; font-weight: bold; }
-    #plan-btn:hover { background: #2d8f47; }
     
     #address-list-container { margin-top: 1rem; }
     #address-list-container h3 { margin: 0 0 0.5rem 0; font-size: 1rem; color: #333; }
@@ -67,32 +63,12 @@
     }
     
     
-    .search-mode-indicator {
-      font-size: 0.8rem;
-      color: #666;
-      margin-top: 0.3rem;
-      padding: 0.3rem 0.5rem;
-      background: #f8f9fa;
-      border-radius: 4px;
-      text-align: center;
-    }
-    
-    .search-mode-indicator.poi-mode {
-      background: #e8f0fe;
-      color: #1a73e8;
-    }
   </style>
 </head>
 <body>
   <div id="sidebar">
-    <h2>Enter Addresses</h2>
-    <input type="text" id="address-input" placeholder="123 Main St" />
-    <div class="search-mode-indicator" id="search-mode-indicator">
-      🏠 Address Search Mode
-    </div>
-    <div class="button-row">
-      <button id="plan-btn">Plan Meetup</button>
-    </div>
+    <h2>Search</h2>
+    <input type="text" id="address-input" placeholder="Enter address or search for places..." />
     <div id="address-list-container">
       <h3>Planning List</h3>
       <ul id="address-list"></ul>

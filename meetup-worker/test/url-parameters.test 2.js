@@ -28,16 +28,16 @@ describe('URL Parameter Functions', () => {
     const url = new URL('http://localhost:8080');
     
     mockAddressList.forEach(addr => {
-      url.searchParams.append('poi', addr.formatted_address); // URLSearchParams handles encoding
+      url.searchParams.append('addy', encodeURIComponent(addr.formatted_address));
     });
     
-    expect(url.toString()).toBe('http://localhost:8080/?poi=123+Main+St%2C+New+York%2C+NY+10001&poi=456+Oak+Ave%2C+Brooklyn%2C+NY+11201');
+    expect(url.toString()).toBe('http://localhost:8080/?addy=123%20Main%20St%2C%20New%20York%2C%20NY%2010001&addy=456%20Oak%20Ave%2C%20Brooklyn%2C%20NY%2011201');
   });
 
   it('should parse multiple addresses from URL', () => {
-    const urlString = 'http://localhost:8080/?poi=123%20Main%20St%2C%20New%20York%2C%20NY%2010001&poi=456%20Oak%20Ave%2C%20Brooklyn%2C%20NY%2011201';
+    const urlString = 'http://localhost:8080/?addy=123%20Main%20St%2C%20New%20York%2C%20NY%2010001&addy=456%20Oak%20Ave%2C%20Brooklyn%2C%20NY%2011201';
     const url = new URL(urlString);
-    const addresses = url.searchParams.getAll('poi');
+    const addresses = url.searchParams.getAll('addy');
     
     expect(addresses).toHaveLength(2);
     expect(decodeURIComponent(addresses[0])).toBe("123 Main St, New York, NY 10001");
