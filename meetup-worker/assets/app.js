@@ -673,11 +673,22 @@ function resetPlanning() {
 }
 
 async function updateAutocompleteForPOI() {
-    if (!autocomplete) return;
+    if (!autocomplete) {
+        console.log("No autocomplete element found");
+        return;
+    }
     
     try {
-        // Remove existing autocomplete
+        console.log("Switching to POI mode - recreating autocomplete element");
+        
+        // Store the parent container
         const inputContainer = autocomplete.parentNode;
+        if (!inputContainer) {
+            console.log("No parent container found");
+            return;
+        }
+        
+        // Remove existing autocomplete
         inputContainer.removeChild(autocomplete);
         
         // Create new autocomplete optimized for POI search
@@ -685,11 +696,7 @@ async function updateAutocompleteForPOI() {
         
         autocomplete = new PlaceAutocompleteElement({
             componentRestrictions: { country: 'us' },
-            types: ['establishment'], // Focus on businesses/POIs
-            locationBias: centerMarker ? { 
-                center: centerMarker.position, 
-                radius: searchRadius 
-            } : undefined
+            types: ['establishment']
         });
         
         // Style the autocomplete element
@@ -744,6 +751,8 @@ async function updateAutocompleteForPOI() {
             }
         });
         
+        console.log("POI mode activated successfully");
+        
     } catch (error) {
         console.error('Error updating autocomplete for POI:', error);
     }
@@ -753,8 +762,16 @@ async function updateAutocompleteForAddresses() {
     if (!autocomplete) return;
     
     try {
-        // Remove existing autocomplete
+        console.log("Switching to address mode - recreating autocomplete element");
+        
+        // Store the parent container
         const inputContainer = autocomplete.parentNode;
+        if (!inputContainer) {
+            console.log("No parent container found");
+            return;
+        }
+        
+        // Remove existing autocomplete
         inputContainer.removeChild(autocomplete);
         
         // Create new autocomplete optimized for address search
@@ -762,7 +779,7 @@ async function updateAutocompleteForAddresses() {
         
         autocomplete = new PlaceAutocompleteElement({
             componentRestrictions: { country: 'us' },
-            types: ['address'] // Focus on addresses
+            types: ['address']
         });
         
         // Style the autocomplete element
@@ -816,6 +833,8 @@ async function updateAutocompleteForAddresses() {
                 }, 100);
             }
         });
+        
+        console.log("Address mode activated successfully");
         
     } catch (error) {
         console.error('Error updating autocomplete for addresses:', error);
