@@ -12,7 +12,12 @@ export default {
 	async fetch(request, env, ctx) {
 		try {
 			const htmlContent = await env.ASSETS.fetch('https://assets.local/hello.html');
-			return new Response(await htmlContent.text(), {
+			const htmlText = await htmlContent.text();
+			
+			// Replace placeholder with actual API key from secrets
+			const updatedHtml = htmlText.replace('GOOGLEMAPS_APIKEY', env.GOOGLEMAPS_APIKEY || 'GOOGLEMAPS_APIKEY');
+			
+			return new Response(updatedHtml, {
 				headers: { "Content-Type": "text/html" },
 			});
 		
