@@ -17,15 +17,12 @@ function initMap() {
 
     // Initialize autocomplete with new Places API
     setupAutocomplete();
-
-    // Set up event listeners
-    setupEventListeners();
     
     // Load addresses from URL parameters
     applyURLParameters();
     
     // Load saved addresses from localStorage
-    loadSavedAddresses();
+    // loadSavedAddresses();
 }
 
 async function setupAutocomplete() {
@@ -41,8 +38,9 @@ async function setupAutocomplete() {
             types: ['establishment', 'address'] // Allow both businesses and addresses
         });
 
-        // Replace the input with the autocomplete element
-        const inputContainer = addressInput.parentNode;
+        // Replace the input with the autocomplete element  
+        // The input is now nested inside a label, so we need to replace just the input
+        const inputContainer = addressInput.parentNode; // this is the label
         inputContainer.replaceChild(autocomplete, addressInput);
         
         // Style the autocomplete element to match our input
@@ -127,12 +125,6 @@ function handleSelectedPlace(place) {
     
     // Clear input
     clearAddressInput();
-}
-
-
-
-function setupEventListeners() {
-    // No buttons to set up anymore - simplified UI
 }
 
 function getAddressInputValue() {
@@ -262,8 +254,14 @@ function searchAndAddAddress() {
 
 async function searchPOIsNearCenter(query) {
     if (!centerMarker) {
-        alert('No meetup center found. Please plan meetup first.');
-        return;
+        // Try to generate the center marker if possible
+        if (addressList.length > 1) {
+            updateCenterOfInterest();
+        }
+        if (!centerMarker) {
+            alert('No meetup center found. Please plan meetup first.');
+            return;
+        }
     }
 
     try {
@@ -423,7 +421,7 @@ function addToList(formattedAddress, lat, lng, placeName = null, type = 'address
     updateURLParameters();
     
     // Save to localStorage for persistence
-    localStorage.setItem('meetupAddresses', JSON.stringify(addressList));
+    // localStorage.setItem('meetupAddresses', JSON.stringify(addressList));
 }
 
 function updateAddressListDisplay() {
@@ -434,7 +432,7 @@ function updateAddressListDisplay() {
         return;
     }
     
-    listElement.innerHTML = '';
+    listElement.innerHTML = ''; // NOTE: Why is this here? Won't it nuke the list if something's already there?
 
     if (addressList.length === 0) {
         const emptyMessage = document.createElement('div');
@@ -491,7 +489,7 @@ function removeFromList(id) {
     updateURLParameters();
     
     // Update localStorage
-    localStorage.setItem('meetupAddresses', JSON.stringify(addressList));
+    // localStorage.setItem('meetupAddresses', JSON.stringify(addressList));
 }
 
 let centerMarker = null;
@@ -537,26 +535,6 @@ function updateCenterOfInterest() {
     
     // Draw search radius circle
     drawSearchRadius(center, searchRadius);
-}
-
-function planMeetup() {
-    if (addressList.length === 0) {
-        alert('Please add some addresses first!');
-        return;
-    }
-
-    if (addressList.length === 1) {
-        alert('Please add at least 2 addresses to find a meetup center!');
-        return;
-    }
-
-    // Use the existing center of interest calculation
-    updateCenterOfInterest();
-    
-    // Center map on the meetup center
-    const center = calculateCenter(addressList);
-    map.setCenter(center);
-    map.setZoom(12);
 }
 
 function calculateCenter(addresses) {
@@ -641,12 +619,6 @@ function drawSearchRadius(center, radius) {
         map: map
     });
 }
-
-
-
-
-
-
 
 // URL parameter functions for sharing
 function updateURLParameters() {
