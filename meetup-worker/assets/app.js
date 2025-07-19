@@ -674,9 +674,23 @@ function applyURLParameters() {
     const addresses = urlParams.getAll('addy');
     const pois = urlParams.getAll('poi');
     
+    // Count total items to process for center calculation timing
+    const totalItems = addresses.length + pois.length;
+    let processedItems = 0;
+    
+    const checkAndUpdateCenter = () => {
+        processedItems++;
+        if (processedItems >= totalItems && addressList.length > 0) {
+            // All items processed, update center of interest
+            setTimeout(() => {
+                updateCenterOfInterest();
+            }, 500); // Small delay to ensure all markers are placed
+        }
+    };
+    
     // Process addresses
     addresses.forEach(address => {
-        geocodeAndAddAddress(address);
+        geocodeAndAddAddress(address, checkAndUpdateCenter);
     });
     
     // Process POIs with coordinates
@@ -687,19 +701,30 @@ function applyURLParameters() {
             if (!isNaN(lat) && !isNaN(lng)) {
                 // Add POI directly with stored coordinates
                 addToListFromURL(name, lat, lng, name, 'poi');
+                checkAndUpdateCenter();
             } else {
                 // Fallback to geocoding if coordinates are invalid
-                geocodeAndAddPOI(name);
+                geocodeAndAddPOI(name, checkAndUpdateCenter);
             }
         } else {
             // Legacy POI format without coordinates
-            geocodeAndAddPOI(name);
+            geocodeAndAddPOI(name, checkAndUpdateCenter);
         }
     });
+    
+    // If no items to process, still check for saved addresses
+    if (totalItems === 0) {
+        setTimeout(() => {
+            updateCenterOfInterest();
+        }, 100);
+    }
 }
 
-function geocodeAndAddAddress(address) {
-    if (!geocoder) return;
+function geocodeAndAddAddress(address, callback) {
+    if (!geocoder) {
+        if (callback) callback();
+        return;
+    }
     
     geocoder.geocode({ address: address }, (results, status) => {
         if (status === 'OK') {
@@ -711,11 +736,16 @@ function geocodeAndAddAddress(address) {
         } else {
             console.error('Geocoding failed for:', address, status);
         }
+        
+        if (callback) callback();
     });
 }
 
-function geocodeAndAddPOI(itemName) {
-    if (!geocoder) return;
+function geocodeAndAddPOI(itemName, callback) {
+    if (!geocoder) {
+        if (callback) callback();
+        return;
+    }
     
     // Geocode the item name to get its location
     geocoder.geocode({ address: itemName }, (results, status) => {
@@ -728,6 +758,8 @@ function geocodeAndAddPOI(itemName) {
         } else {
             console.error('Geocoding failed for:', itemName, status);
         }
+        
+        if (callback) callback();
     });
 }
 
@@ -809,13 +841,16 @@ function loadSavedAddresses() {
                     addToListFromURL(addr.formatted_address, addr.lat, addr.lng, addr.placeName, addr.type || 'address');
                 });
                 
-                // Fit map to show all saved addresses
+                // Fit map to show all saved addresses and calculate center
                 if (addressList.length > 0) {
                     const bounds = new google.maps.LatLngBounds();
                     addressList.forEach(addr => {
                         bounds.extend({ lat: addr.lat, lng: addr.lng });
                     });
                     map.fitBounds(bounds);
+                    
+                    // Calculate center of interest
+                    updateCenterOfInterest();
                 }
             }
         } catch (e) {
