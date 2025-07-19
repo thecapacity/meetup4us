@@ -48,11 +48,16 @@ async function setupAutocomplete() {
         // Style the autocomplete element to match our input
         autocomplete.style.width = '100%';
         autocomplete.style.padding = '0.5rem';
-        autocomplete.style.marginTop = '0.5rem';
+        autocomplete.style.marginTop = '0.25rem';
         autocomplete.style.boxSizing = 'border-box';
         autocomplete.style.border = '1px solid #ccc';
         autocomplete.style.borderRadius = '4px';
         autocomplete.placeholder = 'Enter address or search for places...';
+        
+        // Preserve accessibility attributes
+        autocomplete.id = 'address-input';
+        autocomplete.setAttribute('name', 'address-input');
+        autocomplete.setAttribute('autocomplete', 'street-address');
 
         // Listen for place selection using Google's recommended event
         autocomplete.addEventListener('gmp-select', async (event) => {
