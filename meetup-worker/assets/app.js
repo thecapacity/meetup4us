@@ -23,6 +23,9 @@ function initMap() {
     
     // Load addresses from URL parameters
     applyURLParameters();
+    
+    // Load saved addresses from localStorage
+    loadSavedAddresses();
 }
 
 async function setupAutocomplete() {
@@ -79,18 +82,23 @@ async function setupAutocomplete() {
         });
         
         // Add Enter key support for manual entry fallback
-        autocomplete.addEventListener('keypress', (e) => {
-            if (e.key === 'Enter') {
+        // Use both keydown and keypress to catch Enter reliably
+        const handleEnterKey = (e) => {
+            if (e.key === 'Enter' || e.keyCode === 13) {
                 e.preventDefault();
+                e.stopPropagation();
                 // Small delay to allow autocomplete to process first
                 setTimeout(() => {
-                    const currentValue = autocomplete.value?.trim();
-                    if (currentValue) {
+                    const currentValue = getAddressInputValue();
+                    if (currentValue && currentValue.trim()) {
                         searchAndAddAddress();
                     }
-                }, 100);
+                }, 150);
             }
-        });
+        };
+        
+        autocomplete.addEventListener('keydown', handleEnterKey);
+        autocomplete.addEventListener('keypress', handleEnterKey);
     } catch (error) {
         console.log('Places API not available, falling back to manual entry only:', error);
         // Graceful fallback - manual entry still works
@@ -166,27 +174,48 @@ function getAddressInputValue() {
 function clearAddressInput() {
     // Clear the input value from the PlaceAutocompleteElement
     if (autocomplete) {
-        // Try multiple methods to clear the autocomplete
+        // Try the direct value property first
         try {
             autocomplete.value = '';
         } catch (e) {
-            console.log('Could not clear autocomplete value:', e);
+            console.log('Direct value clear failed, trying alternative methods');
         }
         
-        // Also try to find and clear the internal input
+        // Also try to find and clear the internal input elements
         try {
+            // Try accessing internal properties that might contain the input
+            if (autocomplete.Dg && autocomplete.Dg.value !== undefined) {
+                autocomplete.Dg.value = '';
+            }
+            
+            // Try shadow root access
             const shadowInput = autocomplete.shadowRoot?.querySelector('input');
             if (shadowInput) {
                 shadowInput.value = '';
             }
+            
+            // Try other possible internal properties
+            const possibleInputProps = ['mh', 'inputElement'];
+            for (const prop of possibleInputProps) {
+                if (autocomplete[prop] && autocomplete[prop].value !== undefined) {
+                    autocomplete[prop].value = '';
+                }
+                // If it's a container, look for input inside it
+                if (autocomplete[prop] && autocomplete[prop].querySelector) {
+                    const input = autocomplete[prop].querySelector('input');
+                    if (input && input.value !== undefined) {
+                        input.value = '';
+                    }
+                }
+            }
         } catch (e) {
-            // Shadow root might not be accessible
+            console.log('Alternative clear methods failed:', e);
         }
         
-        // Force focus and blur to reset the element
+        // Force a focus/blur cycle to help reset the element
         try {
             autocomplete.focus();
-            autocomplete.blur();
+            setTimeout(() => autocomplete.blur(), 50);
         } catch (e) {
             // Focus/blur might not work
         }
@@ -200,12 +229,14 @@ function clearAddressInput() {
 }
 
 function searchAndAddAddress() {
-    const searchTerm = autocomplete?.value?.trim() || '';
+    const searchTerm = getAddressInputValue().trim();
 
     if (!searchTerm) {
         alert('Please enter an address or place name');
         return;
     }
+
+    console.log('Searching for:', searchTerm);
 
     // Use Google Geocoding API to find the location
     geocoder.geocode({ address: searchTerm }, (results, status) => {
@@ -385,6 +416,9 @@ function addToList(formattedAddress, lat, lng, placeName = null, type = 'address
     
     // Save to URL for sharing
     updateURLParameters();
+    
+    // Save to localStorage for persistence
+    localStorage.setItem('meetupAddresses', JSON.stringify(addressList));
 }
 
 function updateAddressListDisplay() {
@@ -450,6 +484,9 @@ function removeFromList(id) {
     updateAddressListDisplay();
     updateCenterOfInterest();
     updateURLParameters();
+    
+    // Update localStorage
+    localStorage.setItem('meetupAddresses', JSON.stringify(addressList));
 }
 
 let centerMarker = null;
@@ -611,14 +648,18 @@ function updateURLParameters() {
     const url = new URL(window.location.href);
     
     // Clear existing parameters
+    url.searchParams.delete('addy');
     url.searchParams.delete('poi');
     
-    // Add all items to URL as POIs
+    // Add addresses and POIs to URL separately for better clarity
     addressList.forEach(addr => {
         if (addr.type === 'poi') {
-            url.searchParams.append('poi', addr.placeName || addr.formatted_address);
+            // Store POI with more specific location info to avoid ambiguity
+            const poiData = `${addr.placeName || addr.formatted_address}|${addr.lat},${addr.lng}`;
+            url.searchParams.append('poi', poiData);
         } else {
-            url.searchParams.append('poi', addr.formatted_address);
+            // Store addresses normally
+            url.searchParams.append('addy', addr.formatted_address);
         }
     });
     
@@ -629,12 +670,47 @@ function updateURLParameters() {
 function applyURLParameters() {
     const urlParams = new URLSearchParams(window.location.search);
     
-    // Load all items from URL (everything is now a POI parameter)
+    // Load addresses from URL
+    const addresses = urlParams.getAll('addy');
     const pois = urlParams.getAll('poi');
     
-    // Process all POIs (which includes both addresses and actual POIs)
+    // Process addresses
+    addresses.forEach(address => {
+        geocodeAndAddAddress(address);
+    });
+    
+    // Process POIs with coordinates
     pois.forEach(poi => {
-        geocodeAndAddPOI(poi);
+        const [name, coords] = poi.split('|');
+        if (coords) {
+            const [lat, lng] = coords.split(',').map(Number);
+            if (!isNaN(lat) && !isNaN(lng)) {
+                // Add POI directly with stored coordinates
+                addToListFromURL(name, lat, lng, name, 'poi');
+            } else {
+                // Fallback to geocoding if coordinates are invalid
+                geocodeAndAddPOI(name);
+            }
+        } else {
+            // Legacy POI format without coordinates
+            geocodeAndAddPOI(name);
+        }
+    });
+}
+
+function geocodeAndAddAddress(address) {
+    if (!geocoder) return;
+    
+    geocoder.geocode({ address: address }, (results, status) => {
+        if (status === 'OK') {
+            const location = results[0];
+            const position = location.geometry.location;
+            
+            // Add to list without updating URL (to avoid recursion)
+            addToListFromURL(location.formatted_address, position.lat(), position.lng());
+        } else {
+            console.error('Geocoding failed for:', address, status);
+        }
     });
 }
 
@@ -647,18 +723,8 @@ function geocodeAndAddPOI(itemName) {
             const location = results[0];
             const position = location.geometry.location;
             
-            // Smart detection: if the geocoded result has a different name than input, 
-            // it's likely a business/POI, otherwise it's probably an address
-            const isBusinessPOI = (location.name && location.name !== location.formatted_address && 
-                                  location.name.toLowerCase() === itemName.toLowerCase());
-            
-            if (isBusinessPOI) {
-                // Add as POI
-                addToListFromURL(location.formatted_address, position.lat(), position.lng(), itemName, 'poi');
-            } else {
-                // Add as address
-                addToListFromURL(location.formatted_address, position.lat(), position.lng(), null, 'address');
-            }
+            // Add as POI
+            addToListFromURL(location.formatted_address, position.lat(), position.lng(), itemName, 'poi');
         } else {
             console.error('Geocoding failed for:', itemName, status);
         }
@@ -729,6 +795,32 @@ function addToListFromURL(formattedAddress, lat, lng, placeName = null, type = '
     } else {
         map.setCenter(position);
         map.setZoom(15);
+    }
+}
+
+function loadSavedAddresses() {
+    const saved = localStorage.getItem('meetupAddresses');
+    if (saved) {
+        try {
+            const savedAddresses = JSON.parse(saved);
+            // Only load if we don't already have addresses from URL
+            if (addressList.length === 0) {
+                savedAddresses.forEach(addr => {
+                    addToListFromURL(addr.formatted_address, addr.lat, addr.lng, addr.placeName, addr.type || 'address');
+                });
+                
+                // Fit map to show all saved addresses
+                if (addressList.length > 0) {
+                    const bounds = new google.maps.LatLngBounds();
+                    addressList.forEach(addr => {
+                        bounds.extend({ lat: addr.lat, lng: addr.lng });
+                    });
+                    map.fitBounds(bounds);
+                }
+            }
+        } catch (e) {
+            console.error('Error loading saved addresses:', e);
+        }
     }
 }
 
