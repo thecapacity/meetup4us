@@ -3,7 +3,56 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>Meetup4.us</title>
+  <title>Meetup4.us - Find the Perfect Central Meeting Location for Your Group</title>
+  
+  <!-- SEO Meta Tags -->
+  <meta name="description" content="Find the optimal central meeting location for your group. Enter everyone's addresses and discover the perfect midpoint for meetups, events, and gatherings. Free group location planning tool.">
+  <meta name="keywords" content="meetup location, central meeting point, group meetup planner, find middle location, central address finder, meetup planning tool, group location coordinator, midpoint calculator, meeting location finder">
+  <meta name="author" content="Meetup4.us">
+  <meta name="robots" content="index, follow">
+  
+  <!-- Open Graph / Facebook -->
+  <meta property="og:type" content="website">
+  <meta property="og:url" content="https://meetup4.us/">
+  <meta property="og:title" content="Meetup4.us - Find the Perfect Central Meeting Location">
+  <meta property="og:description" content="Free tool to find the optimal central meeting location for your group. Enter everyone's addresses and discover the perfect midpoint for meetups and events.">
+  <meta property="og:image" content="https://meetup4.us/og-image.png">
+  <meta property="og:site_name" content="Meetup4.us">
+  
+  <!-- Twitter -->
+  <meta property="twitter:card" content="summary_large_image">
+  <meta property="twitter:url" content="https://meetup4.us/">
+  <meta property="twitter:title" content="Meetup4.us - Find the Perfect Central Meeting Location">
+  <meta property="twitter:description" content="Free tool to find the optimal central meeting location for your group. Enter everyone's addresses and discover the perfect midpoint.">
+  <meta property="twitter:image" content="https://meetup4.us/og-image.png">
+  
+  <!-- Canonical URL -->
+  <link rel="canonical" href="https://meetup4.us/">
+  
+  <!-- Structured Data for SEO -->
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@type": "WebApplication",
+    "name": "Meetup4.us",
+    "description": "Find the optimal central meeting location for your group. Free tool to calculate the perfect midpoint for meetups, events, and gatherings.",
+    "url": "https://meetup4.us",
+    "applicationCategory": "UtilityApplication",
+    "operatingSystem": "Web Browser",
+    "offers": {
+      "@type": "Offer",
+      "price": "0",
+      "priceCurrency": "USD"
+    },
+    "featureList": [
+      "Calculate central meeting points",
+      "Find venues near optimal location",
+      "Share meeting locations via URL",
+      "Interactive map visualization",
+      "Address autocomplete"
+    ]
+  }
+  </script>
   <style>
     body { font-family: sans-serif; margin: 0; display: flex; height: 100vh; }
     #sidebar { width: 300px; padding: 1rem; box-shadow: 2px 0 5px rgba(0,0,0,0.1); overflow-y: auto; }
@@ -78,14 +127,27 @@
 </head>
 <body>
   <div id="sidebar">
-    <h2>Search</h2>
+    <h1>Meetup Location Finder</h1>
+    <p>Find the perfect central meeting location for your group. Add everyone's addresses to discover the optimal midpoint.</p>
+    
     <label>
       <span>Enter an address or search for places:</span>
       <input type="text" id="address-input" name="address-input" placeholder="Enter address or search for places..." autocomplete="street-address" />
     </label>
+    
     <div id="address-list-container">
       <h3>Planning List</h3>
       <ul id="address-list"></ul>
+    </div>
+    
+    <div id="instructions" style="margin-top: 1rem; padding: 1rem; background: #f8f9fa; border-radius: 4px; font-size: 0.9rem; color: #666;">
+      <h4 style="margin: 0 0 0.5rem 0; color: #333;">How to use:</h4>
+      <ol style="margin: 0; padding-left: 1.2rem;">
+        <li>Add 2 or more addresses from your group</li>
+        <li>The optimal central meeting point will be calculated automatically</li>
+        <li>Search for restaurants, cafes, or venues near the center</li>
+        <li>Share the URL to let others see the planned location</li>
+      </ol>
     </div>
   </div>
   <div id="map"></div>
