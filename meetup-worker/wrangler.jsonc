@@ -6,7 +6,7 @@
 	"$schema": "node_modules/wrangler/config-schema.json",
 	"name": "meetup-worker",
 	"main": "src/index.js",
-	"compatibility_date": "2025-07-15",
+	"compatibility_date": "2025-11-01",
 	"observability": {
 		"enabled": true,
 		"head_sampling_rate": 1,
