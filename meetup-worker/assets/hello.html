@@ -54,75 +54,169 @@
   }
   </script>
   <style>
-    body { font-family: sans-serif; margin: 0; display: flex; height: 100vh; }
-    #sidebar { width: 300px; padding: 1rem; box-shadow: 2px 0 5px rgba(0,0,0,0.1); overflow-y: auto; }
+    body {
+      font-family: sans-serif;
+      margin: 0;
+      display: flex;
+      height: 100vh;
+    }
+
+    #sidebar {
+      width: 300px;
+      padding: 1rem;
+      box-shadow: 2px 0 5px rgba(0,0,0,0.1);
+      overflow-y: auto;
+      background: white;
+    }
+
     #map { flex: 1; }
-    
-    label { 
-      display: block; 
+
+    h1 {
+      font-size: 1.5rem;
+      margin: 0 0 0.5rem 0;
+    }
+
+    label {
+      display: block;
       margin-bottom: 0.5rem;
     }
-    label span { 
-      display: block; 
-      font-size: 0.9rem; 
-      color: #555; 
-      margin-bottom: 0.25rem; 
+
+    label span {
+      display: block;
+      font-size: 0.9rem;
+      color: #555;
+      margin-bottom: 0.25rem;
       font-weight: 500;
     }
-    input { width: 100%; padding: 0.5rem; margin-top: 0.25rem; box-sizing: border-box; }
-    
-    
+
+    input {
+      width: 100%;
+      padding: 0.75rem;
+      margin-top: 0.25rem;
+      box-sizing: border-box;
+      font-size: 16px; /* Prevents zoom on iOS */
+      border: 1px solid #ccc;
+      border-radius: 4px;
+    }
+
     #address-list-container { margin-top: 1rem; }
     #address-list-container h3 { margin: 0 0 0.5rem 0; font-size: 1rem; color: #333; }
-    
+
     ul { list-style: none; padding: 0; margin: 0; }
-    li { 
-      margin: 0.25rem 0; 
-      padding: 0.5rem; 
-      background: #f8f9fa; 
-      border-radius: 4px; 
+    li {
+      margin: 0.25rem 0;
+      padding: 0.5rem;
+      background: #f8f9fa;
+      border-radius: 4px;
       border: 1px solid #e1e3e1;
     }
-    
-    .address-item { 
-      display: flex; 
-      justify-content: space-between; 
-      align-items: center; 
+
+    .address-item {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 0.5rem;
     }
-    
-    .address-text { 
-      flex: 1; 
-      cursor: pointer; 
+
+    .address-text {
+      flex: 1;
+      cursor: pointer;
       font-size: 0.9rem;
       line-height: 1.3;
+      word-break: break-word;
     }
-    
+
     .address-text:hover { color: #1a73e8; }
-    
-    .remove-btn { 
-      background: #ea4335; 
-      color: white; 
-      border: none; 
-      border-radius: 50%; 
-      width: 24px; 
-      height: 24px; 
-      cursor: pointer; 
-      font-size: 12px;
+
+    .remove-btn {
+      background: #ea4335;
+      color: white;
+      border: none;
+      border-radius: 50%;
+      width: 32px;
+      height: 32px;
+      min-width: 32px; /* Ensure button doesn't shrink */
+      cursor: pointer;
+      font-size: 14px;
       display: flex;
       align-items: center;
       justify-content: center;
+      flex-shrink: 0;
     }
-    
+
     .remove-btn:hover { background: #d33b2c; }
-    
-    .empty-list { 
-      color: #666; 
-      font-style: italic; 
-      text-align: center; 
-      padding: 1rem; 
+
+    .empty-list {
+      color: #666;
+      font-style: italic;
+      text-align: center;
+      padding: 1rem;
     }
-    
-    
+
+    /* Mobile responsive styles */
+    @media (max-width: 768px) {
+      body {
+        flex-direction: column;
+        height: 100vh;
+      }
+
+      #sidebar {
+        width: 100%;
+        max-height: 50vh;
+        padding: 1rem;
+        box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+        overflow-y: auto;
+        -webkit-overflow-scrolling: touch; /* Smooth scrolling on iOS */
+      }
+
+      #map {
+        flex: 1;
+        min-height: 50vh;
+      }
+
+      h1 {
+        font-size: 1.25rem;
+        margin: 0 0 0.5rem 0;
+      }
+
+      label span {
+        font-size: 0.85rem;
+      }
+
+      .address-text {
+        font-size: 0.85rem;
+      }
+
+      #instructions {
+        font-size: 0.85rem !important;
+      }
+
+      #instructions h4 {
+        font-size: 0.9rem !important;
+      }
+
+      /* Ensure touch targets are at least 44x44px for iOS */
+      .remove-btn {
+        width: 36px;
+        height: 36px;
+        min-width: 36px;
+      }
+    }
+
+    /* Extra small devices (phones in portrait, less than 576px) */
+    @media (max-width: 575px) {
+      #sidebar {
+        padding: 0.75rem;
+      }
+
+      h1 {
+        font-size: 1.1rem;
+      }
+
+      li {
+        padding: 0.75rem 0.5rem;
+      }
+    }
   </style>
 </head>
 <body>
