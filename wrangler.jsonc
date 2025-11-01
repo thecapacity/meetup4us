@@ -1,0 +1,34 @@
+/**
+ * For more details on how to configure Wrangler, refer to:
+ * https://developers.cloudflare.com/workers/wrangler/configuration/
+ */
+{
+	"$schema": "meetup-worker/node_modules/wrangler/config-schema.json",
+	"name": "meetup-worker",
+	"main": "meetup-worker/src/index.js",
+	"compatibility_date": "2025-11-01",
+	"observability": {
+		"enabled": true,
+		"head_sampling_rate": 1,
+    	"logs": {
+      	"enabled": true
+    	}
+	},
+	"routes": [
+		{ "pattern": "meetup4.us", "custom_domain": true }
+	],
+	"dev": {
+		"port": 8080,
+		/* "local_protocol": "https" */
+	},
+	"assets": {
+		"directory": "./meetup-worker/assets",
+		"binding": "ASSETS"
+  	}
+
+	/**
+	 * Service Bindings (communicate between multiple Workers)
+	 * https://developers.cloudflare.com/workers/wrangler/configuration/#service-bindings
+	 */
+	// "services": [{ "binding": "MY_SERVICE", "service": "my-service" }]
+}
