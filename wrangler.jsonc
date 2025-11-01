@@ -4,7 +4,7 @@
  */
 {
 	"$schema": "meetup-worker/node_modules/wrangler/config-schema.json",
-	"name": "meetup-worker",
+	"name": "meetup4us",
 	"main": "meetup-worker/src/index.js",
 	"compatibility_date": "2025-11-01",
 	"observability": {
