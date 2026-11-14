@@ -10,7 +10,6 @@ let map;
 let addressList = [];      // { id, formatted_address, lat, lng, marker }
 let centerMarker = null;
 let searchRadius = null;   // meters
-let nearMode = false;      // restrict search to the meetup circle
 let suggestTimer = null;
 let suggestAbort = null;
 let suggestions = [];
@@ -42,12 +41,12 @@ function initMap() {
     }); // end map load
 
     setupSearchInput();
-    document.getElementById('near-toggle').addEventListener('click', toggleNearMode);
-    document.getElementById('share-btn').addEventListener('click', shareLink);
-    document.getElementById('add-btn').addEventListener('click', () => {
-        const input = document.getElementById('address-input');
-        input.scrollIntoView({ block: 'nearest' });
-        input.focus();
+
+    // Navigate on press: if the search box is focused, blurring it resizes
+    // the map on mobile and the link would move out from under the tap.
+    document.getElementById('about-link').addEventListener('pointerdown', (e) => {
+        e.preventDefault();
+        window.location.href = '/about';
     });
     updateAddressListDisplay();
 }
@@ -94,14 +93,7 @@ function buildSearchURL(q, limit) {
     const params = new URLSearchParams({ q, limit: String(limit), lang: 'en' });
     const center = getCenter();
 
-    if (nearMode && center && searchRadius) {
-        // Hard-limit results to the box around the meetup circle
-        const dLat = searchRadius / 111320;
-        const dLng = searchRadius / (111320 * Math.cos(center.lat * Math.PI / 180));
-        params.set('bbox', [center.lng - dLng, center.lat - dLat, center.lng + dLng, center.lat + dLat].join(','));
-        params.set('lat', center.lat);
-        params.set('lon', center.lng);
-    } else if (center) {
+    if (center) {
         // Soft bias toward the group, without excluding far-away addresses
         params.set('lat', center.lat);
         params.set('lon', center.lng);
@@ -114,14 +106,7 @@ async function photonSearch(q, limit = 6, signal) {
     const res = await fetch(buildSearchURL(q, limit), { signal });
     if (!res.ok) throw new Error('Search failed: ' + res.status);
     const data = await res.json();
-    let results = (data.features || []).map(featureToPlace);
-
-    // bbox is a square; trim corners so "near" really means inside the circle
-    const center = getCenter();
-    if (nearMode && center && searchRadius) {
-        results = results.filter(r => haversineDistance(center.lat, center.lng, r.lat, r.lng) <= searchRadius);
-    }
-    return results;
+    return (data.features || []).map(featureToPlace);
 }
 
 function featureToPlace(f) {
@@ -158,7 +143,7 @@ function renderSuggestions() {
     if (!suggestions.length) {
         const empty = document.createElement('div');
         empty.className = 'suggestion empty';
-        empty.textContent = nearMode ? 'Nothing found inside the meetup circle' : 'No matches';
+        empty.textContent = 'No matches';
         box.appendChild(empty);
         box.hidden = false;
         return;
@@ -204,7 +189,7 @@ async function searchAndAddAddress() {
     try {
         const results = await photonSearch(searchTerm, 1);
         if (!results.length) {
-            showToast(nearMode ? 'Nothing found inside the meetup circle' : 'No match for that address');
+            showToast('No match for that address');
             return;
         }
         selectSuggestion(results[0]);
@@ -218,27 +203,6 @@ function clearAddressInput() {
     const input = document.getElementById('address-input');
     input.value = '';
     hideSuggestions();
-}
-
-function toggleNearMode() {
-    nearMode = !nearMode;
-    updateNearToggle();
-    const input = document.getElementById('address-input');
-    if (input.value.trim().length >= 3) fetchSuggestions(input.value.trim());
-    input.focus();
-}
-
-function updateNearToggle() {
-    const btn = document.getElementById('near-toggle');
-    const canUse = addressList.length > 1 && searchRadius;
-    btn.hidden = !canUse;
-    if (!canUse) nearMode = false;
-    btn.classList.toggle('on', nearMode);
-    btn.setAttribute('aria-pressed', String(nearMode));
-    btn.textContent = nearMode ? '◎ Searching inside circle' : '◎ Search near center';
-    document.getElementById('address-input').placeholder = nearMode
-        ? 'Find cafes, parks, restaurants near the center…'
-        : 'Add an address or place…';
 }
 
 // ---------- List + markers ----------
@@ -300,7 +264,6 @@ function updateAddressListDisplay() {
     listElement.innerHTML = '';
 
     document.getElementById('list-count').textContent = addressList.length ? `(${addressList.length})` : '';
-    document.getElementById('share-btn').hidden = addressList.length === 0;
 
     if (addressList.length === 0) {
         const emptyMessage = document.createElement('li');
@@ -310,7 +273,8 @@ function updateAddressListDisplay() {
         return;
     }
 
-    addressList.forEach(addr => {
+    // Newest first: locations stack up under the search box
+    [...addressList].reverse().forEach(addr => {
         const li = document.createElement('li');
         li.className = 'address-item';
 
@@ -329,7 +293,7 @@ function updateAddressListDisplay() {
         li.appendChild(text);
         li.appendChild(remove);
         listElement.appendChild(li);
-    }); // end addressList.forEach
+    }); // end reversed addressList.forEach
 }
 
 function focusOnAddress(addr) {
@@ -360,7 +324,6 @@ function updateCenterOfInterest() {
         if (centerMarker) { centerMarker.remove(); centerMarker = null; }
         searchRadius = null;
         drawSearchRadius(null);
-        updateNearToggle();
         return;
     }
 
@@ -375,7 +338,6 @@ function updateCenterOfInterest() {
         searchRadius = Math.max(maxDistance * 0.8, 1000); // 80% of max distance, minimum 1km
         drawSearchRadius(center, searchRadius);
     }
-    updateNearToggle();
 }
 
 function calculateCenter(addresses) {
@@ -474,20 +436,6 @@ async function applyURLParameters() {
 
     fitToAll();
     updateURLParameters(); // fill in coordinates for any looked-up entries
-}
-
-async function shareLink() {
-    const url = window.location.href;
-    try {
-        if (navigator.share) {
-            await navigator.share({ title: 'Our meetup spot', url });
-            return;
-        }
-        await navigator.clipboard.writeText(url);
-        showToast('Link copied!');
-    } catch (err) {
-        if (err.name !== 'AbortError') showToast('Copy the link from the address bar');
-    }
 }
 
 // ---------- UI helpers ----------

@@ -49,8 +49,7 @@
       "Find venues near optimal location",
       "Share meeting locations via URL",
       "Interactive map visualization",
-      "Address autocomplete",
-      "Search for venues near the midpoint"
+      "Address autocomplete"
     ]
   }
   </script>
@@ -93,35 +92,48 @@
     }
 
     #search-area {
-      padding: 1rem 1rem 0.5rem;
       position: relative;
+      margin-bottom: 0.35rem;
     }
 
     #panel-scroll {
       flex: 1;
       overflow-y: auto;
       -webkit-overflow-scrolling: touch;
-      padding: 0 1rem 1rem;
+      padding: 0.75rem 1rem 1rem;
     }
 
     #map { flex: 1; }
 
-    h1 { font-size: 1.35rem; margin: 0 0 0.25rem; }
-    .tagline { margin: 0 0 0.75rem; color: var(--muted); font-size: 0.9rem; }
 
     input {
       width: 100%;
-      padding: 0.75rem;
+      padding: 0.75rem 2.75rem 0.75rem 0.75rem; /* room for the ⓘ */
       font-size: 16px; /* Prevents zoom on iOS */
       border: 1px solid #ccc;
       border-radius: 8px;
     }
     input:focus { outline: 2px solid var(--blue); border-color: transparent; }
+    input::placeholder { color: var(--blue); }
+
+    #about-link {
+      position: absolute;
+      top: 0;
+      right: 0;
+      width: 44px;
+      height: 46px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: var(--muted);
+      font-size: 1.2rem;
+      text-decoration: none;
+    }
 
     #suggestions {
       position: absolute;
-      left: 1rem;
-      right: 1rem;
+      left: 0;
+      right: 0;
       background: #fff;
       border: 1px solid var(--line);
       border-radius: 8px;
@@ -137,38 +149,10 @@
     .suggestion-title { font-size: 0.95rem; }
     .suggestion-sub { font-size: 0.8rem; color: var(--muted); margin-top: 2px; }
 
-    #near-toggle {
-      margin-top: 0.5rem;
-      padding: 0.5rem 0.85rem;
-      min-height: 40px;
-      border-radius: 999px;
-      border: 1px solid var(--blue);
-      background: #fff;
-      color: var(--blue);
-      font-size: 0.9rem;
-      cursor: pointer;
-    }
-    #near-toggle.on { background: var(--blue); color: #fff; }
 
-    .list-header {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      margin: 0.75rem 0 0.5rem;
-    }
-    .list-header h3 { margin: 0; font-size: 1rem; }
+    .list-header { margin: 0 0 0.5rem; font-size: 1rem; }
     #list-count { color: var(--muted); font-weight: normal; }
 
-    #share-btn {
-      border: none;
-      background: var(--blue);
-      color: #fff;
-      border-radius: 8px;
-      padding: 0.5rem 0.9rem;
-      min-height: 40px;
-      font-size: 0.9rem;
-      cursor: pointer;
-    }
 
     ul { list-style: none; padding: 0; margin: 0; }
 
@@ -181,17 +165,6 @@
       background: var(--soft);
       border: 1px solid var(--line);
       border-radius: 8px;
-    }
-    #add-btn {
-      width: 100%;
-      margin-top: 0.35rem;
-      min-height: 48px;
-      border: 1px dashed var(--blue);
-      border-radius: 8px;
-      background: #fff;
-      color: var(--blue);
-      font-size: 0.95rem;
-      cursor: pointer;
     }
 
     .address-text {
@@ -224,20 +197,7 @@
 
     .empty-list { color: var(--muted); font-style: italic; text-align: center; padding: 1rem; }
 
-    #instructions {
-      margin-top: 1rem;
-      padding: 0.85rem 1rem;
-      background: var(--soft);
-      border-radius: 8px;
-      font-size: 0.85rem;
-      color: var(--muted);
-    }
-    #instructions summary { cursor: pointer; color: var(--text); font-weight: 600; }
-    #instructions ol { margin: 0.5rem 0 0; padding-left: 1.2rem; }
-    #instructions li { margin: 0.25rem 0; }
 
-    .attribution-note { margin-top: 0.75rem; font-size: 0.75rem; color: var(--muted); }
-    .attribution-note a { color: inherit; }
 
     /* Map markers */
     .center-dot {
@@ -279,11 +239,8 @@
         margin-top: -14px; /* tuck over the map edge */
       }
 
-      #search-area { padding: 0.85rem 1rem 0.25rem; }
       #panel-scroll { padding-bottom: calc(1rem + env(safe-area-inset-bottom)); }
 
-      h1 { font-size: 1.1rem; }
-      .tagline { display: none; }
 
       /* Keyboard open: give the panel more room so suggestions are visible */
       body:has(#address-input:focus) #map { flex-basis: 25%; min-height: 140px; }
@@ -292,42 +249,19 @@
 </head>
 <body>
   <div id="sidebar">
-    <div id="search-area">
-      <h1>Meetup4.us</h1>
-      <p class="tagline">Find a fair middle spot for your group.</p>
-
-      <label for="address-input" class="visually-hidden" style="position:absolute;left:-9999px;">Address or place</label>
-      <input type="text" id="address-input" name="address-input"
-             placeholder="Add an address or place…"
-             autocomplete="off" autocorrect="off" spellcheck="false" enterkeyhint="search" />
-      <div id="suggestions" role="listbox" hidden></div>
-
-      <button id="near-toggle" type="button" aria-pressed="false" hidden>◎ Search near center</button>
-    </div>
-
     <div id="panel-scroll">
-      <div class="list-header">
-        <h3>Planning List <span id="list-count"></span></h3>
-        <button id="share-btn" type="button" hidden>Share</button>
+      <h3 class="list-header">Planning List <span id="list-count"></span></h3>
+
+      <div id="search-area">
+        <label for="address-input" style="position:absolute;left:-9999px;">Add a location</label>
+        <input type="text" id="address-input" name="address-input"
+               placeholder="+ Add location"
+               autocomplete="off" autocorrect="off" spellcheck="false" enterkeyhint="search" />
+        <a id="about-link" href="/about" title="About Meetup4.us" aria-label="About Meetup4.us">ⓘ</a>
+        <div id="suggestions" role="listbox" hidden></div>
       </div>
+
       <ul id="address-list"></ul>
-      <button id="add-btn" type="button">+ Add location</button>
-
-      <details id="instructions">
-        <summary>How to use</summary>
-        <ol>
-          <li>Add 2 or more locations (addresses or places)</li>
-          <li>The blue dot and circle show your central meetup area</li>
-          <li>Tap <b>Search near center</b> to find cafes, restaurants, or parks inside the circle</li>
-          <li>Tap <b>Share</b> to send the plan to everyone</li>
-        </ol>
-      </details>
-
-      <p class="attribution-note">
-        Free maps by <a href="https://openfreemap.org" target="_blank" rel="noopener">OpenFreeMap</a>,
-        search by <a href="https://photon.komoot.io" target="_blank" rel="noopener">Photon</a>,
-        data © <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap</a> contributors.
-      </p>
     </div>
   </div>
   <div id="map"></div>
