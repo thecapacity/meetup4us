@@ -118,7 +118,7 @@
 
     input {
       width: 100%;
-      padding: 0.75rem 2.75rem 0.75rem 0.75rem; /* room for the ⓘ */
+      padding: 0.75rem;
       font-size: 16px; /* Prevents zoom on iOS */
       border: 1px solid #ccc;
       border-radius: 8px;
@@ -126,17 +126,30 @@
     input:focus { outline: 2px solid var(--blue); border-color: transparent; }
     input::placeholder { color: var(--blue); }
 
-    #about-link {
-      position: absolute;
-      top: 0;
-      right: 0;
-      width: 44px;
-      height: 46px;
+    /* Map credit: visible on load, collapses to ⓘ (links to /about) */
+    .map-credit {
+      display: flex;
+      align-items: center;
+      gap: 0.35rem;
+      margin: 0 6px 6px 0;
+      padding: 2px 2px 2px 8px;
+      background: rgba(255,255,255,0.85);
+      border-radius: 14px;
+      font-size: 12px;
+      color: #333;
+    }
+    .map-credit a { color: inherit; }
+    .map-credit.collapsed { padding: 2px; }
+    .map-credit.collapsed .map-credit-text { display: none; }
+    .map-credit-info {
+      width: 24px;
+      height: 24px;
       display: flex;
       align-items: center;
       justify-content: center;
-      color: var(--muted);
-      font-size: 1.2rem;
+      border-radius: 50%;
+      background: #fff;
+      font-size: 16px;
       text-decoration: none;
     }
 
@@ -250,6 +263,9 @@
 
       #panel-scroll { padding-bottom: calc(0.5rem + env(safe-area-inset-bottom)); }
 
+      /* Clear the panel's rounded edge, which overlaps the map by 14px */
+      .maplibregl-ctrl-bottom-right .map-credit { margin-bottom: 20px; }
+
       /* Fixed-height list (~35% of screen); map gets the rest and never resizes */
       #address-list { flex: none; height: 35dvh; }
     }
@@ -265,7 +281,6 @@
         <input type="text" id="address-input" name="address-input"
                placeholder="+ Add location"
                autocomplete="off" autocorrect="off" spellcheck="false" enterkeyhint="search" />
-        <a id="about-link" href="/about" title="About Meetup4.us" aria-label="About Meetup4.us">ⓘ</a>
         <div id="suggestions" role="listbox" hidden></div>
       </div>
 

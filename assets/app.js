@@ -23,7 +23,7 @@ function initMap() {
         style: MAP_STYLE,
         center: US_CENTER,
         zoom: 3,
-        attributionControl: { compact: true }
+        attributionControl: false // replaced by addMapCredit()
     });
     map.addControl(new maplibregl.NavigationControl({ showCompass: false }), 'top-right');
 
@@ -41,13 +41,29 @@ function initMap() {
     }); // end map load
 
     setupSearchInput();
-
-    // Navigate on press, before input blur/keyboard dismissal can shift the layout
-    document.getElementById('about-link').addEventListener('pointerdown', (e) => {
-        e.preventDefault();
-        window.location.href = '/about';
-    });
+    addMapCredit();
     updateAddressListDisplay();
+}
+
+// OSM attribution guidelines allow the credit to collapse to an icon
+// after a few seconds or on map interaction; the ⓘ links to /about.
+function addMapCredit() {
+    const el = document.createElement('div');
+    el.className = 'maplibregl-ctrl map-credit';
+    el.innerHTML =
+        '<span class="map-credit-text">' +
+        '<a href="https://openfreemap.org" target="_blank" rel="noopener">OpenFreeMap</a> ' +
+        '<a href="https://www.openmaptiles.org/" target="_blank" rel="noopener">© OpenMapTiles</a> ' +
+        'Data from <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap</a>' +
+        '</span>' +
+        '<a class="map-credit-info" href="/about" title="About & map credits" aria-label="About and map credits">ⓘ</a>';
+    map.addControl({ onAdd: () => el, onRemove: () => el.remove() }, 'bottom-right');
+
+    const collapse = () => el.classList.add('collapsed');
+    setTimeout(collapse, 5000);
+    // Only user gestures (with originalEvent), not our own fitBounds/flyTo
+    map.on('dragstart', collapse);
+    map.on('zoomstart', (e) => { if (e.originalEvent) collapse(); });
 }
 
 function emptyGeoJSON() {
