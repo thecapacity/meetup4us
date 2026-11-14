@@ -42,8 +42,7 @@ function initMap() {
 
     setupSearchInput();
 
-    // Navigate on press: if the search box is focused, blurring it resizes
-    // the map on mobile and the link would move out from under the tap.
+    // Navigate on press, before input blur/keyboard dismissal can shift the layout
     document.getElementById('about-link').addEventListener('pointerdown', (e) => {
         e.preventDefault();
         window.location.href = '/about';
@@ -254,9 +253,13 @@ function fitToAll() {
         map.flyTo({ center: [addressList[0].lng, addressList[0].lat], zoom: 14 });
         return;
     }
-    const bounds = new maplibregl.LngLatBounds();
-    addressList.forEach(a => bounds.extend([a.lng, a.lat]));
-    map.fitBounds(bounds, { padding: 60, maxZoom: 15 });
+    // Fit the meetup circle plus a ~15% buffer outside it
+    const center = getCenter();
+    const r = searchRadius * 1.15;
+    const dLat = r / 111320;
+    const dLng = r / (111320 * Math.cos(center.lat * Math.PI / 180));
+    map.fitBounds([[center.lng - dLng, center.lat - dLat], [center.lng + dLng, center.lat + dLat]],
+        { padding: 10, maxZoom: 15 });
 }
 
 function updateAddressListDisplay() {
@@ -308,6 +311,7 @@ function removeFromList(id) {
     addressList = addressList.filter(a => a.id !== id);
     updateAddressListDisplay();
     updateCenterOfInterest();
+    fitToAll();
     updateURLParameters();
 }
 

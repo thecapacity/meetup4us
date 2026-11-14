@@ -98,9 +98,19 @@
 
     #panel-scroll {
       flex: 1;
+      min-height: 0;
+      display: flex;
+      flex-direction: column;
+      padding: 0.75rem 1rem 1rem;
+    }
+
+    /* The list scrolls on its own; search box and map stay put */
+    #address-list {
+      flex: 1;
+      min-height: 0;
       overflow-y: auto;
       -webkit-overflow-scrolling: touch;
-      padding: 0.75rem 1rem 1rem;
+      overscroll-behavior: contain;
     }
 
     #map { flex: 1; }
@@ -138,7 +148,7 @@
       border: 1px solid var(--line);
       border-radius: 8px;
       box-shadow: 0 6px 16px rgba(0,0,0,0.15);
-      max-height: 50vh;
+      max-height: 40dvh;
       overflow-y: auto;
       z-index: 10;
     }
@@ -226,24 +236,22 @@
 
       #map {
         order: -1;
-        flex: 0 0 45%;
-        min-height: 220px;
+        flex: 1;
+        min-height: 0;
       }
 
       #sidebar {
         width: 100%;
-        flex: 1;
-        min-height: 0;
+        flex: none;
         box-shadow: 0 -2px 8px rgba(0,0,0,0.12);
         border-radius: 14px 14px 0 0;
         margin-top: -14px; /* tuck over the map edge */
       }
 
-      #panel-scroll { padding-bottom: calc(1rem + env(safe-area-inset-bottom)); }
+      #panel-scroll { padding-bottom: calc(0.5rem + env(safe-area-inset-bottom)); }
 
-
-      /* Keyboard open: give the panel more room so suggestions are visible */
-      body:has(#address-input:focus) #map { flex-basis: 25%; min-height: 140px; }
+      /* Fixed-height list (~35% of screen); map gets the rest and never resizes */
+      #address-list { flex: none; height: 35dvh; }
     }
   </style>
 </head>
