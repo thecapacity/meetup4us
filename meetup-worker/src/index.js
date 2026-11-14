@@ -1,30 +1,22 @@
 /**
- * Welcome to Cloudflare Workers! This is your first worker.
- *
- * - Run `npm run dev` in your terminal to start a development server
- * - Open a browser tab at http://localhost:8787/ to see your worker in action
- * - Run `npm run deploy` to publish your worker
- *
- * Learn more at https://developers.cloudflare.com/workers/
+ * Meetup4.us worker — serves the static app.
+ * Mapping is fully client-side with free, key-less services
+ * (MapLibre + OpenFreeMap tiles + Photon search), so no secrets are needed.
  */
 
 export default {
 	async fetch(request, env, ctx) {
-		try {
-			const htmlContent = await env.ASSETS.fetch('https://assets.local/hello.html');
-			const htmlText = await htmlContent.text();
-			
-			// Replace placeholder with actual API key from secrets
-			const updatedHtml = htmlText.replace('GOOGLEMAPS_APIKEY', env.GOOGLEMAPS_APIKEY || 'GOOGLEMAPS_APIKEY');
-			
-			return new Response(updatedHtml, {
-				headers: { "Content-Type": "text/html" },
+		const url = new URL(request.url);
+
+		// Root (and any query-string share link) serves the app page
+		if (url.pathname === '/' || url.pathname === '/index.html') {
+			const page = await env.ASSETS.fetch(new URL('/hello.html', url));
+			return new Response(page.body, {
+				headers: { 'Content-Type': 'text/html; charset=utf-8' },
 			});
-		
-		} catch (err) {
-			console.log({ "message": "Error reading the HTML file", "error": err });
-			return new Response("Error loading the dashboard.", { status: 500 });
-		}
-		
+		} // end root
+
+		// Everything else (app.js, og-image.png, ...) comes straight from assets
+		return env.ASSETS.fetch(request);
 	},
 };

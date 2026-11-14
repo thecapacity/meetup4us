@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover"/>
   <title>Meetup4.us - Find the Perfect Central Meeting Location for Your Group</title>
   
   <!-- SEO Meta Tags -->
@@ -49,204 +49,285 @@
       "Find venues near optimal location",
       "Share meeting locations via URL",
       "Interactive map visualization",
-      "Address autocomplete"
+      "Address autocomplete",
+      "Search for venues near the midpoint"
     ]
   }
   </script>
+  <link rel="stylesheet" href="https://unpkg.com/maplibre-gl@5.6.0/dist/maplibre-gl.css">
+  <script src="https://unpkg.com/maplibre-gl@5.6.0/dist/maplibre-gl.js"></script>
   <style>
-    body {
-      font-family: sans-serif;
+    :root {
+      --blue: #1a73e8;
+      --red: #ea4335;
+      --text: #202124;
+      --muted: #5f6368;
+      --line: #e1e3e1;
+      --soft: #f6f8fa;
+    }
+
+    * { box-sizing: border-box; }
+
+    html, body {
       margin: 0;
+      height: 100%;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      color: var(--text);
+      background: #fff;
+    }
+
+    body {
       display: flex;
       height: 100vh;
+      height: 100dvh; /* Mobile: excludes browser toolbars */
+      overflow: hidden;
     }
 
     #sidebar {
-      width: 300px;
-      padding: 1rem;
-      box-shadow: 2px 0 5px rgba(0,0,0,0.1);
+      width: 340px;
+      display: flex;
+      flex-direction: column;
+      box-shadow: 2px 0 6px rgba(0,0,0,0.1);
+      background: #fff;
+      z-index: 2;
+    }
+
+    #search-area {
+      padding: 1rem 1rem 0.5rem;
+      position: relative;
+    }
+
+    #panel-scroll {
+      flex: 1;
       overflow-y: auto;
-      background: white;
+      -webkit-overflow-scrolling: touch;
+      padding: 0 1rem 1rem;
     }
 
     #map { flex: 1; }
 
-    h1 {
-      font-size: 1.5rem;
-      margin: 0 0 0.5rem 0;
-    }
-
-    label {
-      display: block;
-      margin-bottom: 0.5rem;
-    }
-
-    label span {
-      display: block;
-      font-size: 0.9rem;
-      color: #555;
-      margin-bottom: 0.25rem;
-      font-weight: 500;
-    }
+    h1 { font-size: 1.35rem; margin: 0 0 0.25rem; }
+    .tagline { margin: 0 0 0.75rem; color: var(--muted); font-size: 0.9rem; }
 
     input {
       width: 100%;
       padding: 0.75rem;
-      margin-top: 0.25rem;
-      box-sizing: border-box;
       font-size: 16px; /* Prevents zoom on iOS */
       border: 1px solid #ccc;
-      border-radius: 4px;
+      border-radius: 8px;
     }
+    input:focus { outline: 2px solid var(--blue); border-color: transparent; }
 
-    #address-list-container { margin-top: 1rem; }
-    #address-list-container h3 { margin: 0 0 0.5rem 0; font-size: 1rem; color: #333; }
-
-    ul { list-style: none; padding: 0; margin: 0; }
-    li {
-      margin: 0.25rem 0;
-      padding: 0.5rem;
-      background: #f8f9fa;
-      border-radius: 4px;
-      border: 1px solid #e1e3e1;
+    #suggestions {
+      position: absolute;
+      left: 1rem;
+      right: 1rem;
+      background: #fff;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      box-shadow: 0 6px 16px rgba(0,0,0,0.15);
+      max-height: 50vh;
+      overflow-y: auto;
+      z-index: 10;
     }
+    .suggestion { padding: 0.7rem 0.75rem; cursor: pointer; border-bottom: 1px solid var(--line); }
+    .suggestion:last-child { border-bottom: none; }
+    .suggestion:hover, .suggestion.active { background: var(--soft); }
+    .suggestion.empty { color: var(--muted); cursor: default; font-style: italic; }
+    .suggestion-title { font-size: 0.95rem; }
+    .suggestion-sub { font-size: 0.8rem; color: var(--muted); margin-top: 2px; }
 
-    .address-item {
+    #near-toggle {
+      margin-top: 0.5rem;
+      padding: 0.5rem 0.85rem;
+      min-height: 40px;
+      border-radius: 999px;
+      border: 1px solid var(--blue);
+      background: #fff;
+      color: var(--blue);
+      font-size: 0.9rem;
+      cursor: pointer;
+    }
+    #near-toggle.on { background: var(--blue); color: #fff; }
+
+    .list-header {
       display: flex;
       justify-content: space-between;
       align-items: center;
-      gap: 0.5rem;
+      margin: 0.75rem 0 0.5rem;
     }
+    .list-header h3 { margin: 0; font-size: 1rem; }
+    #list-count { color: var(--muted); font-weight: normal; }
+
+    #share-btn {
+      border: none;
+      background: var(--blue);
+      color: #fff;
+      border-radius: 8px;
+      padding: 0.5rem 0.9rem;
+      min-height: 40px;
+      font-size: 0.9rem;
+      cursor: pointer;
+    }
+
+    ul { list-style: none; padding: 0; margin: 0; }
+
+    .address-item {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      margin: 0.35rem 0;
+      padding: 0.35rem 0.35rem 0.35rem 0.6rem;
+      background: var(--soft);
+      border: 1px solid var(--line);
+      border-radius: 8px;
+    }
+    .address-item.is-poi { border-left: 4px solid var(--red); }
 
     .address-text {
       flex: 1;
-      cursor: pointer;
+      text-align: left;
+      background: none;
+      border: none;
+      padding: 0.4rem 0;
+      font: inherit;
       font-size: 0.9rem;
       line-height: 1.3;
+      color: inherit;
       word-break: break-word;
+      cursor: pointer;
     }
-
-    .address-text:hover { color: #1a73e8; }
+    .address-text:hover { color: var(--blue); }
 
     .remove-btn {
-      background: #ea4335;
-      color: white;
+      flex-shrink: 0;
+      width: 40px;
+      height: 40px;
       border: none;
       border-radius: 50%;
-      width: 32px;
-      height: 32px;
-      min-width: 32px; /* Ensure button doesn't shrink */
+      background: transparent;
+      color: var(--muted);
+      font-size: 16px;
       cursor: pointer;
-      font-size: 14px;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      flex-shrink: 0;
+    }
+    .remove-btn:hover { background: #fde8e6; color: var(--red); }
+
+    .empty-list { color: var(--muted); font-style: italic; text-align: center; padding: 1rem; }
+
+    #instructions {
+      margin-top: 1rem;
+      padding: 0.85rem 1rem;
+      background: var(--soft);
+      border-radius: 8px;
+      font-size: 0.85rem;
+      color: var(--muted);
+    }
+    #instructions summary { cursor: pointer; color: var(--text); font-weight: 600; }
+    #instructions ol { margin: 0.5rem 0 0; padding-left: 1.2rem; }
+    #instructions li { margin: 0.25rem 0; }
+
+    .attribution-note { margin-top: 0.75rem; font-size: 0.75rem; color: var(--muted); }
+    .attribution-note a { color: inherit; }
+
+    /* Map markers */
+    .center-dot {
+      width: 22px; height: 22px; border-radius: 50%;
+      background: var(--blue); border: 3px solid #fff;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.35);
+      cursor: pointer;
+    }
+    .poi-dot {
+      width: 16px; height: 16px; border-radius: 50%;
+      background: var(--red); border: 2px solid #fff;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.3);
+      cursor: pointer;
     }
 
-    .remove-btn:hover { background: #d33b2c; }
-
-    .empty-list {
-      color: #666;
-      font-style: italic;
-      text-align: center;
-      padding: 1rem;
+    #toast {
+      position: fixed;
+      left: 50%;
+      bottom: calc(1.25rem + env(safe-area-inset-bottom));
+      transform: translateX(-50%);
+      background: #323232;
+      color: #fff;
+      padding: 0.6rem 1rem;
+      border-radius: 8px;
+      font-size: 0.9rem;
+      z-index: 20;
     }
 
-    /* Mobile responsive styles */
+    /* ---------- Mobile: map on top, panel below ---------- */
     @media (max-width: 768px) {
-      body {
-        flex-direction: column;
-        height: 100vh;
+      body { flex-direction: column; }
+
+      #map {
+        order: -1;
+        flex: 0 0 45%;
+        min-height: 220px;
       }
 
       #sidebar {
         width: 100%;
-        max-height: 50vh;
-        padding: 1rem;
-        box-shadow: 0 2px 5px rgba(0,0,0,0.1);
-        overflow-y: auto;
-        -webkit-overflow-scrolling: touch; /* Smooth scrolling on iOS */
-      }
-
-      #map {
         flex: 1;
-        min-height: 50vh;
+        min-height: 0;
+        box-shadow: 0 -2px 8px rgba(0,0,0,0.12);
+        border-radius: 14px 14px 0 0;
+        margin-top: -14px; /* tuck over the map edge */
       }
 
-      h1 {
-        font-size: 1.25rem;
-        margin: 0 0 0.5rem 0;
-      }
+      #search-area { padding: 0.85rem 1rem 0.25rem; }
+      #panel-scroll { padding-bottom: calc(1rem + env(safe-area-inset-bottom)); }
 
-      label span {
-        font-size: 0.85rem;
-      }
+      h1 { font-size: 1.1rem; }
+      .tagline { display: none; }
 
-      .address-text {
-        font-size: 0.85rem;
-      }
-
-      #instructions {
-        font-size: 0.85rem !important;
-      }
-
-      #instructions h4 {
-        font-size: 0.9rem !important;
-      }
-
-      /* Ensure touch targets are at least 44x44px for iOS */
-      .remove-btn {
-        width: 36px;
-        height: 36px;
-        min-width: 36px;
-      }
-    }
-
-    /* Extra small devices (phones in portrait, less than 576px) */
-    @media (max-width: 575px) {
-      #sidebar {
-        padding: 0.75rem;
-      }
-
-      h1 {
-        font-size: 1.1rem;
-      }
-
-      li {
-        padding: 0.75rem 0.5rem;
-      }
+      /* Keyboard open: give the panel more room so suggestions are visible */
+      body:has(#address-input:focus) #map { flex-basis: 25%; min-height: 140px; }
     }
   </style>
 </head>
 <body>
   <div id="sidebar">
-    <h1>Meetup Location Finder</h1>
-    <p>Find the perfect central meeting location for your group. Add everyone's addresses to discover the optimal midpoint.</p>
-    
-    <label>
-      <span>Enter an address or search for places:</span>
-      <input type="text" id="address-input" name="address-input" placeholder="Enter address or search for places..." autocomplete="street-address" />
-    </label>
-    
-    <div id="address-list-container">
-      <h3>Planning List</h3>
-      <ul id="address-list"></ul>
+    <div id="search-area">
+      <h1>Meetup4.us</h1>
+      <p class="tagline">Find a fair middle spot for your group.</p>
+
+      <label for="address-input" class="visually-hidden" style="position:absolute;left:-9999px;">Address or place</label>
+      <input type="text" id="address-input" name="address-input"
+             placeholder="Add an address or place…"
+             autocomplete="off" autocorrect="off" spellcheck="false" enterkeyhint="search" />
+      <div id="suggestions" role="listbox" hidden></div>
+
+      <button id="near-toggle" type="button" aria-pressed="false" hidden>◎ Search near center</button>
     </div>
-    
-    <div id="instructions" style="margin-top: 1rem; padding: 1rem; background: #f8f9fa; border-radius: 4px; font-size: 0.9rem; color: #666;">
-      <h4 style="margin: 0 0 0.5rem 0; color: #333;">How to use:</h4>
-      <ol style="margin: 0; padding-left: 1.2rem;">
-        <li>Add 2 or more addresses from your group</li>
-        <li>The optimal central meeting point will be calculated automatically</li>
-        <li>Search for restaurants, cafes, or venues near the center</li>
-        <li>Share the URL to let others see the planned location</li>
-      </ol>
+
+    <div id="panel-scroll">
+      <div class="list-header">
+        <h3>Planning List <span id="list-count"></span></h3>
+        <button id="share-btn" type="button" hidden>Share</button>
+      </div>
+      <ul id="address-list"></ul>
+
+      <details id="instructions">
+        <summary>How to use</summary>
+        <ol>
+          <li>Add 2 or more addresses from your group</li>
+          <li>The blue dot and circle show your central meetup area</li>
+          <li>Tap <b>Search near center</b> to find cafes, restaurants, or parks inside the circle</li>
+          <li>Tap <b>Share</b> to send the plan to everyone</li>
+        </ol>
+      </details>
+
+      <p class="attribution-note">
+        Free maps by <a href="https://openfreemap.org" target="_blank" rel="noopener">OpenFreeMap</a>,
+        search by <a href="https://photon.komoot.io" target="_blank" rel="noopener">Photon</a>,
+        data © <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap</a> contributors.
+      </p>
     </div>
   </div>
   <div id="map"></div>
+  <div id="toast" role="status" hidden></div>
 
   <script src="app.js"></script>
-  <script src="https://maps.googleapis.com/maps/api/js?key=GOOGLEMAPS_APIKEY&libraries=marker,places&callback=initMap&loading=async" async defer></script>
 </body>
 </html>
