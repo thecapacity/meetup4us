@@ -182,7 +182,17 @@
       border: 1px solid var(--line);
       border-radius: 8px;
     }
-    .address-item.is-poi { border-left: 4px solid var(--red); }
+    #add-btn {
+      width: 100%;
+      margin-top: 0.35rem;
+      min-height: 48px;
+      border: 1px dashed var(--blue);
+      border-radius: 8px;
+      background: #fff;
+      color: var(--blue);
+      font-size: 0.95rem;
+      cursor: pointer;
+    }
 
     .address-text {
       flex: 1;
@@ -234,12 +244,6 @@
       width: 22px; height: 22px; border-radius: 50%;
       background: var(--blue); border: 3px solid #fff;
       box-shadow: 0 2px 6px rgba(0,0,0,0.35);
-      cursor: pointer;
-    }
-    .poi-dot {
-      width: 16px; height: 16px; border-radius: 50%;
-      background: var(--red); border: 2px solid #fff;
-      box-shadow: 0 2px 4px rgba(0,0,0,0.3);
       cursor: pointer;
     }
 
@@ -307,11 +311,12 @@
         <button id="share-btn" type="button" hidden>Share</button>
       </div>
       <ul id="address-list"></ul>
+      <button id="add-btn" type="button">+ Add location</button>
 
       <details id="instructions">
         <summary>How to use</summary>
         <ol>
-          <li>Add 2 or more addresses from your group</li>
+          <li>Add 2 or more locations (addresses or places)</li>
           <li>The blue dot and circle show your central meetup area</li>
           <li>Tap <b>Search near center</b> to find cafes, restaurants, or parks inside the circle</li>
           <li>Tap <b>Share</b> to send the plan to everyone</li>

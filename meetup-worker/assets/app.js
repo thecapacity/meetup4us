@@ -7,7 +7,7 @@ const MAP_STYLE = 'https://tiles.openfreemap.org/styles/liberty';
 const US_CENTER = [-98.5795, 39.8283]; // [lng, lat]
 
 let map;
-let addressList = [];      // { id, formatted_address, lat, lng, placeName, type, marker }
+let addressList = [];      // { id, formatted_address, lat, lng, marker }
 let centerMarker = null;
 let searchRadius = null;   // meters
 let nearMode = false;      // restrict search to the meetup circle
@@ -44,6 +44,11 @@ function initMap() {
     setupSearchInput();
     document.getElementById('near-toggle').addEventListener('click', toggleNearMode);
     document.getElementById('share-btn').addEventListener('click', shareLink);
+    document.getElementById('add-btn').addEventListener('click', () => {
+        const input = document.getElementById('address-input');
+        input.scrollIntoView({ block: 'nearest' });
+        input.focus();
+    });
     updateAddressListDisplay();
 }
 
@@ -127,12 +132,10 @@ function featureToPlace(f) {
         .filter(Boolean);
     // Avoid repeating the name when it's just the street address
     const address = parts.join(', ') || p.country || '';
-    const isPOI = !!p.name && p.osm_key !== 'place' && p.osm_key !== 'highway' && p.osm_key !== 'boundary';
     return {
         lat, lng,
         name: p.name || null,
         address: address || p.name || 'Unknown location',
-        type: isPOI ? 'poi' : 'address',
         kind: p.osm_value ? p.osm_value.replace(/_/g, ' ') : ''
     };
 }
@@ -167,7 +170,7 @@ function renderSuggestions() {
 
         const title = document.createElement('div');
         title.className = 'suggestion-title';
-        title.textContent = (s.type === 'poi' ? '⭐ ' : '📍 ') + (s.name || s.address);
+        title.textContent = '📍 ' + (s.name || s.address);
         item.appendChild(title);
 
         const sub = document.createElement('div');
@@ -190,8 +193,8 @@ function hideSuggestions() {
 }
 
 function selectSuggestion(s) {
-    const display = s.name && s.type === 'poi' ? `${s.name}, ${s.address}` : (s.name && !s.address.startsWith(s.name) ? `${s.name}, ${s.address}` : s.address);
-    addToList(display, s.lat, s.lng, s.type === 'poi' ? s.name : null, s.type);
+    const display = s.name && !s.address.startsWith(s.name) ? `${s.name}, ${s.address}` : s.address;
+    addToList(display, s.lat, s.lng);
     clearAddressInput();
 }
 
@@ -239,8 +242,9 @@ function updateNearToggle() {
 }
 
 // ---------- List + markers ----------
+// Every location is an equal constraint on the midpoint.
 
-function addToList(formattedAddress, lat, lng, placeName = null, type = 'address', options = {}) {
+function addToList(formattedAddress, lat, lng, options = {}) {
     if (addressList.some(addr => addr.formatted_address === formattedAddress)) {
         if (!options.silent) showToast('Already in the list');
         return;
@@ -249,9 +253,7 @@ function addToList(formattedAddress, lat, lng, placeName = null, type = 'address
     const addressData = {
         formatted_address: formattedAddress,
         lat, lng,
-        id: Date.now() + Math.random(),
-        placeName,
-        type
+        id: Date.now() + Math.random()
     };
     addressData.marker = createMarker(addressData);
     addressList.push(addressData);
@@ -263,15 +265,8 @@ function addToList(formattedAddress, lat, lng, placeName = null, type = 'address
 }
 
 function createMarker(addr) {
-    let marker;
-    if (addr.type === 'poi') {
-        const el = document.createElement('div');
-        el.className = 'poi-dot';
-        marker = new maplibregl.Marker({ element: el });
-    } else {
-        marker = new maplibregl.Marker({ color: '#ea4335' });
-    }
-    const popup = new maplibregl.Popup({ offset: 20 }).setDOMContent(popupContent(addr.placeName || addr.formatted_address, addr.placeName ? addr.formatted_address : ''));
+    const marker = new maplibregl.Marker({ color: '#ea4335' });
+    const popup = new maplibregl.Popup({ offset: 20 }).setDOMContent(popupContent(addr.formatted_address, ''));
     return marker.setLngLat([addr.lng, addr.lat]).setPopup(popup).addTo(map);
 }
 
@@ -310,18 +305,18 @@ function updateAddressListDisplay() {
     if (addressList.length === 0) {
         const emptyMessage = document.createElement('li');
         emptyMessage.className = 'empty-list';
-        emptyMessage.textContent = 'Add 2+ addresses to find your midpoint';
+        emptyMessage.textContent = 'Add 2+ locations to find your midpoint';
         listElement.appendChild(emptyMessage);
         return;
     }
 
     addressList.forEach(addr => {
         const li = document.createElement('li');
-        li.className = 'address-item' + (addr.type === 'poi' ? ' is-poi' : '');
+        li.className = 'address-item';
 
         const text = document.createElement('button');
         text.className = 'address-text';
-        text.textContent = (addr.type === 'poi' ? '⭐ ' : '📍 ') + addr.formatted_address;
+        text.textContent = '📍 ' + addr.formatted_address;
         text.addEventListener('click', () => focusOnAddress(addr));
 
         const remove = document.createElement('button');
@@ -355,14 +350,11 @@ function removeFromList(id) {
 // ---------- Center + radius ----------
 
 function getCenter() {
-    if (!addressList.length) return null;
-    return calculateCenter(addressList.filter(a => a.type !== 'poi').length ? addressList.filter(a => a.type !== 'poi') : addressList);
+    return addressList.length ? calculateCenter(addressList) : null;
 }
 
 function updateCenterOfInterest() {
-    // POIs are candidate venues, so only people's addresses define the midpoint
-    const people = addressList.filter(a => a.type !== 'poi');
-    const basis = people.length ? people : addressList;
+    const basis = addressList;
 
     if (basis.length === 0) {
         if (centerMarker) { centerMarker.remove(); centerMarker = null; }
@@ -439,21 +431,15 @@ function drawSearchRadius(center, radius) {
 }
 
 // ---------- Sharing via URL ----------
-// Format: ?addy=<address>|<lat>,<lng>&poi=<name>|<lat>,<lng>
+// Format: ?addy=<address>|<lat>,<lng>
 // Coordinates are embedded so shared links open instantly without re-geocoding.
-// Legacy links (?addy=<address> without coords) are still geocoded on load.
+// An ?addy=<address> without coords (e.g. hand-typed) is looked up on load.
 
 function updateURLParameters() {
     const url = new URL(window.location.href);
     url.searchParams.delete('addy');
-    url.searchParams.delete('poi');
     addressList.forEach(addr => {
-        const coords = `${addr.lat.toFixed(6)},${addr.lng.toFixed(6)}`;
-        if (addr.type === 'poi') {
-            url.searchParams.append('poi', `${addr.placeName || addr.formatted_address}|${coords}`);
-        } else {
-            url.searchParams.append('addy', `${addr.formatted_address}|${coords}`);
-        }
+        url.searchParams.append('addy', `${addr.formatted_address}|${addr.lat.toFixed(6)},${addr.lng.toFixed(6)}`);
     }); // end addressList.forEach
     window.history.replaceState({}, '', url);
 }
@@ -467,16 +453,13 @@ function parseEntry(raw) {
 
 async function applyURLParameters() {
     const urlParams = new URLSearchParams(window.location.search);
-    const entries = [
-        ...urlParams.getAll('addy').map(raw => ({ ...parseEntry(raw), type: 'address' })),
-        ...urlParams.getAll('poi').map(raw => ({ ...parseEntry(raw), type: 'poi' }))
-    ];
+    const entries = urlParams.getAll('addy').map(parseEntry);
     if (!entries.length) return;
 
     for (const e of entries) {
         let { name, lat, lng } = e;
         if (isNaN(lat) || isNaN(lng)) {
-            // Legacy link: look it up (sequentially, to stay polite to Photon)
+            // No coords given: look it up (sequentially, to stay polite to Photon)
             try {
                 const [hit] = await photonSearch(name, 1);
                 if (!hit) { console.warn('Could not find', name); continue; }
@@ -486,15 +469,11 @@ async function applyURLParameters() {
                 continue;
             }
         }
-        if (e.type === 'poi') {
-            addToList(name, lat, lng, name, 'poi', { skipFit: true, skipURL: true, silent: true });
-        } else {
-            addToList(name, lat, lng, null, 'address', { skipFit: true, skipURL: true, silent: true });
-        }
+        addToList(name, lat, lng, { skipFit: true, skipURL: true, silent: true });
     } // end for entries
 
     fitToAll();
-    updateURLParameters(); // upgrade legacy links to include coordinates
+    updateURLParameters(); // fill in coordinates for any looked-up entries
 }
 
 async function shareLink() {
