@@ -43,6 +43,11 @@ function initMap() {
 
     setupSearchInput();
 
+    document.getElementById('locate-btn').addEventListener('pointerdown', (e) => {
+        e.preventDefault();
+        addMyLocation();
+    });
+
     // pointerdown + preventDefault: keeps input focus and fires on the first tap
     document.getElementById('nearby-btn').addEventListener('pointerdown', (e) => {
         e.preventDefault();
@@ -220,7 +225,7 @@ function selectSuggestion(s) {
     const display = s.name && !s.address.startsWith(s.name) ? `${s.name}, ${s.address}` : s.address;
     addToList(display, s.lat, s.lng);
     clearAddressInput();
-    setNearMode(false); // back to "+ Add location" after each nearby pick
+    setNearMode(false); // back to "Add location" after each nearby pick
 }
 
 function setNearMode(on) {
@@ -234,7 +239,7 @@ function setNearMode(on) {
     document.getElementById('search-area').classList.toggle('nearby', nearMode);
 
     const input = document.getElementById('address-input');
-    input.placeholder = nearMode ? 'Search nearby' : '+ Add location';
+    input.placeholder = nearMode ? 'Search nearby' : 'Add location';
 }
 
 async function searchAndAddAddress() {
@@ -257,6 +262,41 @@ function clearAddressInput() {
     const input = document.getElementById('address-input');
     input.value = '';
     hideSuggestions();
+}
+
+// ---------- Add my current location (📍) ----------
+
+function addMyLocation() {
+    const btn = document.getElementById('locate-btn');
+    if (!navigator.geolocation) {
+        showToast("This browser can't share your location");
+        return;
+    }
+    if (btn.classList.contains('busy')) return;
+    btn.classList.add('busy');
+
+    navigator.geolocation.getCurrentPosition(async (pos) => {
+        const { latitude: lat, longitude: lng } = pos.coords;
+        let label = 'My location';
+        try {
+            // Reverse lookup for a readable label; keep the GPS coordinates themselves
+            const res = await fetch(`https://photon.komoot.io/reverse?lat=${lat}&lon=${lng}&lang=en`);
+            const data = await res.json();
+            if (data.features && data.features.length) {
+                const place = featureToPlace(data.features[0]);
+                label = place.address || label;
+            }
+        } catch (err) {
+            console.warn('Reverse lookup failed', err);
+        }
+        btn.classList.remove('busy');
+        addToList(label, lat, lng);
+    }, (err) => {
+        btn.classList.remove('busy');
+        showToast(err.code === err.PERMISSION_DENIED
+            ? 'Location permission is off for this site'
+            : "Couldn't get your location");
+    }, { enableHighAccuracy: true, timeout: 15000, maximumAge: 60000 });
 }
 
 // ---------- List + markers ----------

@@ -118,13 +118,32 @@
 
     input {
       width: 100%;
-      padding: 0.75rem 3rem 0.75rem 0.75rem; /* room for the ◎ button */
+      padding: 0.75rem 3rem 0.75rem 2.75rem; /* room for 📍 (left) and ◎ (right) */
       font-size: 16px; /* Prevents zoom on iOS */
       border: 1px solid #ccc;
       border-radius: 8px;
     }
     input:focus { outline: 2px solid var(--blue); border-color: transparent; }
     input::placeholder { color: var(--blue); }
+
+    /* "Add my location" pin inside the search box (left) */
+    #locate-btn {
+      position: absolute;
+      top: 3px;
+      left: 3px;
+      width: 40px;
+      height: 40px;
+      border: none;
+      border-radius: 6px;
+      background: transparent;
+      font-size: 18px;
+      line-height: 1;
+      cursor: pointer;
+    }
+    #locate-btn.busy { animation: pulse 1s ease-in-out infinite; }
+    @keyframes pulse { 50% { opacity: 0.3; } }
+    #search-area.nearby #locate-btn { display: none; }
+    #search-area.nearby input { padding-left: 0.75rem; }
 
     /* Search-nearby toggle inside the search box */
     #nearby-btn {
@@ -296,8 +315,10 @@
 
       <div id="search-area">
         <label for="address-input" style="position:absolute;left:-9999px;">Add a location</label>
+        <button id="locate-btn" type="button"
+                title="Add my current location" aria-label="Add my current location">📍</button>
         <input type="text" id="address-input" name="address-input"
-               placeholder="+ Add location"
+               placeholder="Add location"
                autocomplete="off" autocorrect="off" spellcheck="false" enterkeyhint="search" />
         <button id="nearby-btn" type="button" aria-pressed="false" hidden
                 title="Search nearby" aria-label="Search nearby">◎</button>
