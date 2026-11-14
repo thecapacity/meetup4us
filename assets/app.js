@@ -14,6 +14,7 @@ let suggestTimer = null;
 let suggestAbort = null;
 let suggestions = [];
 let activeIndex = -1;
+let nearMode = false;      // one-shot: limit the next search to the circle
 
 // ---------- Map setup ----------
 
@@ -41,6 +42,15 @@ function initMap() {
     }); // end map load
 
     setupSearchInput();
+
+    // pointerdown + preventDefault: keeps input focus and fires on the first tap
+    document.getElementById('nearby-btn').addEventListener('pointerdown', (e) => {
+        e.preventDefault();
+        setNearMode(!nearMode);
+        const input = document.getElementById('address-input');
+        input.focus();
+        if (input.value.trim().length >= 3) fetchSuggestions(input.value.trim()); // re-run in new mode
+    });
     addMapCredit();
     updateAddressListDisplay();
 }
@@ -108,7 +118,14 @@ function buildSearchURL(q, limit) {
     const params = new URLSearchParams({ q, limit: String(limit), lang: 'en' });
     const center = getCenter();
 
-    if (center) {
+    if (nearMode && center && searchRadius) {
+        // Hard limit (server-side) to the box around the circle
+        const dLat = searchRadius / 111320;
+        const dLng = searchRadius / (111320 * Math.cos(center.lat * Math.PI / 180));
+        params.set('bbox', [center.lng - dLng, center.lat - dLat, center.lng + dLng, center.lat + dLat].join(','));
+        params.set('lat', center.lat);
+        params.set('lon', center.lng);
+    } else if (center) {
         // Soft bias toward the group, without excluding far-away addresses
         params.set('lat', center.lat);
         params.set('lon', center.lng);
@@ -121,7 +138,14 @@ async function photonSearch(q, limit = 6, signal) {
     const res = await fetch(buildSearchURL(q, limit), { signal });
     if (!res.ok) throw new Error('Search failed: ' + res.status);
     const data = await res.json();
-    return (data.features || []).map(featureToPlace);
+    const results = (data.features || []).map(featureToPlace);
+
+    // bbox is a square; trim its corners so results are inside the circle
+    const center = getCenter();
+    if (nearMode && center && searchRadius) {
+        return results.filter(r => haversineDistance(center.lat, center.lng, r.lat, r.lng) <= searchRadius);
+    }
+    return results;
 }
 
 function featureToPlace(f) {
@@ -158,7 +182,7 @@ function renderSuggestions() {
     if (!suggestions.length) {
         const empty = document.createElement('div');
         empty.className = 'suggestion empty';
-        empty.textContent = 'No matches';
+        empty.textContent = nearMode ? 'Nothing found inside the circle' : 'No matches';
         box.appendChild(empty);
         box.hidden = false;
         return;
@@ -196,6 +220,21 @@ function selectSuggestion(s) {
     const display = s.name && !s.address.startsWith(s.name) ? `${s.name}, ${s.address}` : s.address;
     addToList(display, s.lat, s.lng);
     clearAddressInput();
+    setNearMode(false); // back to "+ Add location" after each nearby pick
+}
+
+function setNearMode(on) {
+    const canUse = addressList.length > 1 && !!searchRadius;
+    nearMode = on && canUse;
+
+    const btn = document.getElementById('nearby-btn');
+    btn.hidden = !canUse;
+    btn.classList.toggle('on', nearMode);
+    btn.setAttribute('aria-pressed', String(nearMode));
+    document.getElementById('search-area').classList.toggle('nearby', nearMode);
+
+    const input = document.getElementById('address-input');
+    input.placeholder = nearMode ? 'Search nearby' : '+ Add location';
 }
 
 async function searchAndAddAddress() {
@@ -204,7 +243,7 @@ async function searchAndAddAddress() {
     try {
         const results = await photonSearch(searchTerm, 1);
         if (!results.length) {
-            showToast('No match for that address');
+            showToast(nearMode ? 'Nothing found inside the circle' : 'No match for that address');
             return;
         }
         selectSuggestion(results[0]);
@@ -344,6 +383,7 @@ function updateCenterOfInterest() {
         if (centerMarker) { centerMarker.remove(); centerMarker = null; }
         searchRadius = null;
         drawSearchRadius(null);
+        setNearMode(false);
         return;
     }
 
@@ -358,6 +398,7 @@ function updateCenterOfInterest() {
         searchRadius = Math.max(maxDistance * 0.8, 1000); // 80% of max distance, minimum 1km
         drawSearchRadius(center, searchRadius);
     }
+    setNearMode(nearMode); // show/hide ◎ as the circle appears or disappears
 }
 
 function calculateCenter(addresses) {

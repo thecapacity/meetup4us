@@ -118,13 +118,31 @@
 
     input {
       width: 100%;
-      padding: 0.75rem;
+      padding: 0.75rem 3rem 0.75rem 0.75rem; /* room for the ◎ button */
       font-size: 16px; /* Prevents zoom on iOS */
       border: 1px solid #ccc;
       border-radius: 8px;
     }
     input:focus { outline: 2px solid var(--blue); border-color: transparent; }
     input::placeholder { color: var(--blue); }
+
+    /* Search-nearby toggle inside the search box */
+    #nearby-btn {
+      position: absolute;
+      top: 3px;
+      right: 3px;
+      width: 40px;
+      height: 40px;
+      border: none;
+      border-radius: 6px;
+      background: transparent;
+      color: var(--muted);
+      font-size: 22px;
+      line-height: 1;
+      cursor: pointer;
+    }
+    #nearby-btn.on { background: var(--blue); color: #fff; }
+    #search-area.nearby input { border-color: var(--blue); background: #eef4fe; }
 
     /* Map credit: visible on load, collapses to ⓘ (links to /about) */
     .map-credit {
@@ -281,6 +299,8 @@
         <input type="text" id="address-input" name="address-input"
                placeholder="+ Add location"
                autocomplete="off" autocorrect="off" spellcheck="false" enterkeyhint="search" />
+        <button id="nearby-btn" type="button" aria-pressed="false" hidden
+                title="Search nearby" aria-label="Search nearby">◎</button>
         <div id="suggestions" role="listbox" hidden></div>
       </div>
 
