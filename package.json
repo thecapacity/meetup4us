@@ -1,12 +1,14 @@
 {
-  "devDependencies": {
-    "wrangler": "^4.24.4"
-  },
+  "name": "meetup4us",
+  "private": true,
   "scripts": {
-    "deploy": "cd meetup-worker && wrangler deploy",
-    "dev": "cd meetup-worker && wrangler dev",
-    "start": "cd meetup-worker && wrangler dev",
-    "remote": "cd meetup-worker && wrangler dev --remote",
-    "log": "cd meetup-worker && wrangler tail"
+    "dev": "wrangler dev",
+    "start": "wrangler dev",
+    "remote": "wrangler dev --remote",
+    "deploy": "wrangler deploy",
+    "log": "wrangler tail"
+  },
+  "devDependencies": {
+    "wrangler": "^4.45.3"
   }
 }

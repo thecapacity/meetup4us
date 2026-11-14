@@ -1,21 +1,28 @@
 # meetup4us
 
-## Setup
+Find a fair middle spot for your group: add everyone's locations, see the midpoint and a circle around it, and share the link.
 
-* `npm install -g wrangler`
-* `npm create cloudflare@latest -- meetup-worker`
-    - go throught the prompts:
-        * name: `meetup-worker`
-        * category: `Hello World example`
-        * type: `Worker Only`
-        * langg: `Javascript`
-    - Deploy: `No` (we'll use a GitHub Workflow for that or Cloudflare's GitHub App)
-* `npx wrangler dev`
+Live at [meetup4.us](https://meetup4.us). Runs as a Cloudflare Worker serving static assets.
 
-## Google Maps API
-- https://developers.google.com/maps/documentation/javascript/cloud-setup
-    - Get an API key, add it `KEY="..."` into `.dev.vars`
-    - It's a good idea to restrict by website domain (referrer too) **BUT** this won't work with the GeoCoding API
-- **To Shutdown:** https://console.cloud.google.com/iam-admin/projects?utm_source=Docs_ProjectShutdown&utm_content=Docs_maps-backend
-    - Delete the project
-    - https://console.cloud.google.com/apis/credentials?inv=1&invt=Ab3GjA&project=meetup4us
+## Mapping stack (free, no API keys)
+
+- **Map:** [MapLibre GL JS](https://maplibre.org) + [OpenFreeMap](https://openfreemap.org) vector tiles
+- **Search / geocoding:** [Photon](https://photon.komoot.io) (OpenStreetMap data)
+
+All mapping runs in the browser, so there are no keys to leak and no bill to run up.
+
+## Development
+
+* `npm install`
+* `npm run dev`: local server on http://localhost:8080
+* `npm run log`: tail live worker logs
+
+## Deploying
+
+Pushing to `main` deploys automatically via Cloudflare Workers Builds (worker name: `meetup4us`).
+`npm run deploy` deploys manually; don't do both for the same change.
+
+## Google Maps (retired)
+
+The site used to use Google Maps. If the old Google Cloud project is still around, shut it down:
+https://console.cloud.google.com/iam-admin/projects

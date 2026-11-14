@@ -3,9 +3,9 @@
  * https://developers.cloudflare.com/workers/wrangler/configuration/
  */
 {
-	"$schema": "meetup-worker/node_modules/wrangler/config-schema.json",
-	"name": "meetup-worker",
-	"main": "meetup-worker/src/index.js",
+	"$schema": "node_modules/wrangler/config-schema.json",
+	"name": "meetup4us",
+	"main": "src/index.js",
 	"compatibility_date": "2025-11-01",
 	"observability": {
 		"enabled": true,
@@ -22,7 +22,7 @@
 		/* "local_protocol": "https" */
 	},
 	"assets": {
-		"directory": "./meetup-worker/assets",
+		"directory": "./assets",
 		"binding": "ASSETS"
   	}
 
